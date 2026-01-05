@@ -1,0 +1,85 @@
+import express, { type Express } from "express";
+import { StatusCodes } from "http-status-codes";
+import helmet from "helmet";
+import cookieParser from "cookie-parser";
+import cors from "cors";
+import passport from "passport";
+import MorganMiddleware from "./middlewares/morgan";
+import Route404 from "./middlewares/invalidRoute";
+import ErrorHandlerMiddleware from "./middlewares/errorHandler";
+import type Secrets from "@/infrastructure/secrets";
+import type Adapter from "@/adapter";
+import { corsOptions } from "@/infrastructure/utils/cors";
+import UserHandler from "./handlers/user";
+import type Services from "@/service";
+
+export default class ExpressHTTP {
+  secrets: Secrets;
+  services: Services;
+  adapter: Adapter;
+  server: Express;
+
+  router = express.Router();
+
+  constructor(secrets: Secrets, services: Services, adapter: Adapter) {
+    this.secrets = secrets;
+    this.services = services;
+    this.adapter = adapter;
+    this.server = express();
+
+    this.server.use(express.json());
+    this.server.use(express.urlencoded({ extended: true }));
+    this.server.use(helmet());
+    this.server.use(cookieParser(this.secrets.cookieSecret));
+    this.server.use(
+      cors({ origin: this.secrets.clientOrigin, ...corsOptions }),
+    );
+    let morganMiddleware = new MorganMiddleware();
+    this.server.use(morganMiddleware.middleware);
+    this.server.use(passport.initialize() as express.RequestHandler);
+
+    this.testPoolConnection();
+
+    this.health();
+
+    this.server.use(`/api/v1`, this.router);
+
+    this.user();
+
+    this.server.use(Route404);
+    this.server.use(ErrorHandlerMiddleware);
+  }
+
+  async testPoolConnection() {
+    const client = await this.adapter.pgPool.connect();
+
+    try {
+      await client.query("SELECT 1");
+      console.log("PostgreSQL connected successfully");
+    } catch (err) {
+      console.error("Failed to connect to PostgreSQL:", err);
+      process.exit(1);
+    } finally {
+      client.release();
+    }
+  }
+
+  listen() {
+    this.server.listen(this.secrets.port, () => {
+      console.log(
+        `Listening on port http://localhost:${this.secrets.port} ...`,
+      );
+    });
+  }
+
+  health() {
+    this.server.get("/health", (_req, res) => {
+      return res.status(StatusCodes.OK).send("kakcil is up");
+    });
+  }
+
+  user() {
+    const router = new UserHandler(this.services.userService);
+    this.router.use("/users", router.router);
+  }
+}

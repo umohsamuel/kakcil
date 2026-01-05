@@ -1,0 +1,97 @@
+import type {
+  ErrorRequestHandler,
+  NextFunction,
+  Request,
+  Response,
+} from "express";
+import { ZodError } from "zod";
+import { StatusCodes } from "http-status-codes";
+import { JsonWebTokenError } from "jsonwebtoken";
+import { DatabaseError } from "pg";
+import { ApiError } from "@/infrastructure/errors";
+import { ErrorResponse } from "@/infrastructure/responses/error";
+
+const ErrorHandlerMiddleware: ErrorRequestHandler = async (
+  err: any,
+  _req: Request,
+  res: Response,
+  _next: NextFunction,
+) => {
+  console.log(err);
+  if (err instanceof ApiError) {
+    return new ErrorResponse(res, err.message, err.statusCode).send();
+  }
+
+  if (err instanceof ZodError) {
+    const errorMessages = err.issues.map((issue: any) => ({
+      message: `${issue.path.join(".")} is ${issue.message}`,
+    }));
+    return new ErrorResponse(res, "Invalid data", StatusCodes.BAD_REQUEST, {
+      details: errorMessages,
+    }).send();
+  }
+
+  if (err instanceof JsonWebTokenError) {
+    if (err.name === "TokenExpiredError") {
+      return new ErrorResponse(
+        res,
+        "Token has expired",
+        StatusCodes.BAD_REQUEST,
+      ).send();
+    }
+    return new ErrorResponse(
+      res,
+      "Invalid token",
+      StatusCodes.BAD_REQUEST,
+    ).send();
+  }
+
+  if (err instanceof DatabaseError) {
+    switch (err.code) {
+      case "23505":
+        return new ErrorResponse(res, err.detail, StatusCodes.CONFLICT).send();
+
+      case "23503":
+        return new ErrorResponse(
+          res,
+          "entity doesn't exist",
+          StatusCodes.NOT_FOUND,
+        ).send();
+
+      case "23502":
+      case "23514":
+        return new ErrorResponse(
+          res,
+          err.detail,
+          StatusCodes.BAD_REQUEST,
+        ).send();
+
+      case "08000":
+      case "08003":
+      case "08006":
+        return new ErrorResponse(
+          res,
+          err.detail,
+          StatusCodes.SERVICE_UNAVAILABLE,
+        ).send();
+
+      case "53300":
+        return new ErrorResponse(
+          res,
+          err.detail,
+          StatusCodes.SERVICE_UNAVAILABLE,
+        ).send();
+
+      default:
+        return new ErrorResponse(
+          res,
+          err.detail,
+          StatusCodes.INTERNAL_SERVER_ERROR,
+        ).send();
+    }
+  }
+
+  return new ErrorResponse(res).send();
+};
+
+export default ErrorHandlerMiddleware;

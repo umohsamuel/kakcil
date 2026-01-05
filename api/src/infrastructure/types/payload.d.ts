@@ -1,0 +1,3 @@
+type Payload = {
+  id: string;
+};

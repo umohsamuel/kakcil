@@ -1,0 +1,16 @@
+services:
+  backend:
+    build: .
+    container_name: kakcil_backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
+
+    networks:
+      - kakcil_network
+
+networks:
+  kakcil_network:
+    driver: bridge
