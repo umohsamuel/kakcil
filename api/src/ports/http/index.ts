@@ -12,6 +12,8 @@ import type Adapter from "@/adapter";
 import { corsOptions } from "@/infrastructure/utils/cors";
 import UserHandler from "./handlers/user";
 import type Services from "@/service";
+import AuthenticationHandler from "./handlers/authentication";
+import { Authorize } from "./middlewares/authorization";
 
 export default class ExpressHTTP {
   secrets: Secrets;
@@ -41,6 +43,7 @@ export default class ExpressHTTP {
     this.testPoolConnection();
 
     this.health();
+    this.authentication();
 
     this.server.use(`/api/v1`, this.router);
 
@@ -78,8 +81,20 @@ export default class ExpressHTTP {
     });
   }
 
+  authentication() {
+    const router = new AuthenticationHandler(
+      this.services.authenticationService,
+      this.secrets,
+    );
+    this.server.use("/auth", router.router);
+  }
+
   user() {
     const router = new UserHandler(this.services.userService);
-    this.router.use("/users", router.router);
+    this.router.use(
+      "/users",
+      Authorize(this.services.authenticationService),
+      router.router,
+    );
   }
 }

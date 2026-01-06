@@ -45,7 +45,7 @@ export default class UserAdapter implements UserRepository {
     }
 
     const user = result.rows[0] as IUser;
-    delete user.password;
+    // delete user.password;
 
     return user;
   }
@@ -66,7 +66,8 @@ export default class UserAdapter implements UserRepository {
     }
 
     const user = result.rows[0] as IUser;
-    delete user.password;
+
+    // delete user.password;
 
     return user;
   }

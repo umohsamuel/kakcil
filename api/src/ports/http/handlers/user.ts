@@ -39,6 +39,10 @@ export default class UserHandler {
 
     const user = await this.userService.getUserByEmail(email);
 
+    if (user) {
+      delete user.password;
+    }
+
     new SuccessResponse(res, { user }).send();
   };
 
@@ -46,6 +50,10 @@ export default class UserHandler {
     const id = req.params.id as string;
 
     const user = await this.userService.getUserById(id);
+
+    if (user) {
+      delete user.password;
+    }
 
     new SuccessResponse(res, { user }).send();
   };

@@ -10,11 +10,11 @@ export default class UserService {
   }
 
   async createUser(user: AddUserParams) {
-    return this.userRepository.add(user);
+    return await this.userRepository.add(user);
   }
 
   async updateUser(userId: string, user: UpdateUserParams) {
-    return this.userRepository.update({ id: userId, ...user });
+    return await this.userRepository.update({ id: userId, ...user });
   }
 
   async verifyUser(userId: string) {
@@ -29,19 +29,26 @@ export default class UserService {
     });
   }
 
+  async updateUserPassword(userId: string, password: string) {
+    return await this.userRepository.update({
+      id: userId,
+      password,
+    });
+  }
+
   async getAllUsers() {
-    return this.userRepository.getAll();
+    return await this.userRepository.getAll();
   }
 
   async getUserById(userId: string) {
-    return this.userRepository.findById(userId);
+    return await this.userRepository.findById(userId);
   }
 
   async getUserByEmail(email: string) {
-    return this.userRepository.findByEmail(email);
+    return await this.userRepository.findByEmail(email);
   }
 
   async deleteUser(userId: string) {
-    return this.userRepository.delete(userId);
+    return await this.userRepository.delete(userId);
   }
 }
