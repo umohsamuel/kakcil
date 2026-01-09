@@ -27,7 +27,7 @@ export const Authorize = (services: AuthenticationService) => {
     } catch (error) {
       console.log("[ Authorize error ]: ", error);
 
-      throw error;
+      throw new UnAuthorizedError("invalid token");
     }
   };
 };
@@ -55,7 +55,8 @@ export const AuthorizeRefreshToken = (services: AuthenticationService) => {
       next();
     } catch (error) {
       console.log("[ AuthorizeRefreshToken error ]: ", error);
-      throw error;
+
+      throw new UnAuthorizedError("invalid token");
     }
   };
 };

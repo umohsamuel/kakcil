@@ -14,6 +14,7 @@ import UserHandler from "./handlers/user";
 import type Services from "@/service";
 import AuthenticationHandler from "./handlers/authentication";
 import { Authorize } from "./middlewares/authorization";
+import ChatHandler from "./handlers/chat";
 
 export default class ExpressHTTP {
   secrets: Secrets;
@@ -48,6 +49,7 @@ export default class ExpressHTTP {
     this.server.use(`/api/v1`, this.router);
 
     this.user();
+    this.chat();
 
     this.server.use(Route404);
     this.server.use(ErrorHandlerMiddleware);
@@ -93,6 +95,15 @@ export default class ExpressHTTP {
     const router = new UserHandler(this.services.userService);
     this.router.use(
       "/users",
+      Authorize(this.services.authenticationService),
+      router.router,
+    );
+  }
+
+  chat() {
+    const router = new ChatHandler(this.services.chatService);
+    this.router.use(
+      "/chats",
       Authorize(this.services.authenticationService),
       router.router,
     );

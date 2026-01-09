@@ -31,6 +31,17 @@ export type MailerCredentials = {
   MAILER_SERVICE: string;
 };
 
+export type GeminiCredentials = {
+  apiKey: string;
+};
+
+export type AIModelConfiguration = {
+  model: string;
+  fastModel: string;
+};
+
+export type AISDKProvider = "google" | "openai" | "anthropic";
+
 config();
 
 export default class Secrets {
@@ -46,6 +57,10 @@ export default class Secrets {
   // cloudinaryCredentials: CloundinaryCredentials;
   dbConnectionCredentials: DBConnectionCredentials;
   mailerCredentials: MailerCredentials;
+  geminiCredentials: GeminiCredentials;
+  openaiAPIKey: string;
+  aisdkProvider: AISDKProvider;
+  aiModelConfiguration: AIModelConfiguration;
 
   constructor() {
     this.port = parseInt(process.env.SERVER_PORT || "8080");
@@ -90,6 +105,28 @@ export default class Secrets {
       PGCHANNELBINDING: this.getEnvironmentVariable("PGCHANNELBINDING"),
       PGPORT: this.getEnvironmentVariableAsNumber("PGPORT", 5432),
     };
+
+    this.geminiCredentials = {
+      apiKey: this.getEnvironmentVariable("GEMINI_API_KEY"),
+    };
+
+    this.aiModelConfiguration = {
+      model: this.getEnvironmentVariableOrFallback(
+        "AI_MODEL",
+        "gemini-2.5-flash",
+      ),
+      fastModel: this.getEnvironmentVariableOrFallback(
+        "AI_FAST_MODEL",
+        "gemini-2.5-flash",
+      ),
+    };
+
+    this.openaiAPIKey = this.getEnvironmentVariable("OPENAI_API_KEY");
+
+    this.aisdkProvider = this.getEnvironmentVariableOrFallback(
+      "AI_SDK_PROVIDER",
+      "google",
+    ) as AISDKProvider;
   }
 
   getEnvironmentVariable(key: string): string {
