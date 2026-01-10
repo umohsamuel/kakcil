@@ -1,16 +1,18 @@
-import type {
-  TextGenerationRequest,
-  TextGenerationResponse,
-  VoteRequest,
+import {
+  MultiCriteriaVoteSchema,
+  type TextGenerationRequest,
+  type TextGenerationResponse,
+  type VoteRequest,
 } from "@/domain/llm/entity";
 import { type Pool } from "pg";
 import type Secrets from "@/infrastructure/secrets";
-import { streamText, generateText } from "ai";
+import { streamText, generateText, Output } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { google } from "@ai-sdk/google";
 import { anthropic } from "@ai-sdk/anthropic";
 import type LLMRepository from "@/domain/llm/repository";
 import { BadRequestError } from "@/infrastructure/errors/badRequest";
+import { AIProviders } from "@/infrastructure/utils/ai";
 
 export default class LLMAdapter implements LLMRepository {
   secrets: Secrets;
@@ -25,6 +27,7 @@ export default class LLMAdapter implements LLMRepository {
     request: TextGenerationRequest,
     useFastModel?: boolean,
     sdkProvider: string = this.secrets.aisdkProvider,
+    output?: Output.Output,
   ): Promise<TextGenerationResponse> {
     if (!request.prompt) {
       throw new BadRequestError("prompt is required");
@@ -35,25 +38,27 @@ export default class LLMAdapter implements LLMRepository {
         sdkProvider === "google"
           ? google(
               (request.model ?? useFastModel)
-                ? this.secrets.aiModelConfiguration.fastModel
-                : this.secrets.aiModelConfiguration.model,
+                ? this.secrets.aiModelConfiguration.google.fastModel
+                : this.secrets.aiModelConfiguration.google.model,
             )
           : sdkProvider === "openai"
             ? openai(
                 (request.model ?? useFastModel)
-                  ? this.secrets.aiModelConfiguration.fastModel
-                  : this.secrets.aiModelConfiguration.model,
+                  ? this.secrets.aiModelConfiguration.openai.fastModel
+                  : this.secrets.aiModelConfiguration.openai.model,
               )
             : anthropic(
                 (request.model ?? useFastModel)
-                  ? this.secrets.aiModelConfiguration.fastModel
-                  : this.secrets.aiModelConfiguration.model,
+                  ? this.secrets.aiModelConfiguration.anthropic.fastModel
+                  : this.secrets.aiModelConfiguration.anthropic.model,
               ),
       prompt: request.prompt,
+      output,
     });
 
     return {
       text: result.text,
+      result: result,
       usage: {
         promptTokens: result.usage.inputTokens,
         completionTokens: result.usage.outputTokenDetails.reasoningTokens,
@@ -78,19 +83,19 @@ export default class LLMAdapter implements LLMRepository {
         sdkProvider === "google"
           ? google(
               (request.model ?? useFastModel)
-                ? this.secrets.aiModelConfiguration.fastModel
-                : this.secrets.aiModelConfiguration.model,
+                ? this.secrets.aiModelConfiguration.google.fastModel
+                : this.secrets.aiModelConfiguration.google.model,
             )
           : sdkProvider === "openai"
             ? openai(
                 (request.model ?? useFastModel)
-                  ? this.secrets.aiModelConfiguration.fastModel
-                  : this.secrets.aiModelConfiguration.model,
+                  ? this.secrets.aiModelConfiguration.openai.fastModel
+                  : this.secrets.aiModelConfiguration.openai.model,
               )
             : anthropic(
                 (request.model ?? useFastModel)
-                  ? this.secrets.aiModelConfiguration.fastModel
-                  : this.secrets.aiModelConfiguration.model,
+                  ? this.secrets.aiModelConfiguration.anthropic.fastModel
+                  : this.secrets.aiModelConfiguration.anthropic.model,
               ),
       prompt: request.prompt,
       abortSignal: signal,
@@ -101,116 +106,229 @@ export default class LLMAdapter implements LLMRepository {
     }
   }
 
-  async vote(request: VoteRequest[]): Promise<TextGenerationResponse> {
-    if (!request || request.length === 0) {
-      throw new BadRequestError("vote requests are required");
+  async vote(request: VoteRequest): Promise<{ text: string }> {
+    if (!request || !request.prompt) {
+      throw new BadRequestError("vote request is required");
     }
 
-    const originalPrompt = request[0].prompt;
+    const originalPrompt = request.prompt;
 
-    // Prepare voting prompt with all responses
+    const promptResponse: Array<{
+      prompt: string;
+      model: string;
+      response: string;
+    }> = [];
+
+    await Promise.all(
+      AIProviders.map(async (provider) => {
+        try {
+          const result = await generateText({
+            model:
+              provider === "google"
+                ? google(this.secrets.aiModelConfiguration.google.fastModel)
+                : provider === "openai"
+                  ? openai(this.secrets.aiModelConfiguration.openai.fastModel)
+                  : anthropic(
+                      this.secrets.aiModelConfiguration.anthropic.fastModel,
+                    ),
+            prompt: originalPrompt,
+          });
+
+          promptResponse.push({
+            prompt: originalPrompt,
+            model: provider,
+            response: result.text,
+          });
+        } catch (error) {
+          console.error(
+            `Error getting prompt response from ${provider}:`,
+            error,
+          );
+        }
+      }),
+    );
+
+    console.log("model responses: ", { promptResponse });
+
+    if (promptResponse.length === 0) {
+      throw new BadRequestError("Failed to get any responses from models");
+    }
+
     const votingPrompt = `
-You are evaluating multiple AI-generated responses to the same prompt. Your task is to vote for the BEST response based on accuracy, helpfulness, clarity, and relevance.
+You are evaluating multiple AI-generated responses to the same prompt. Rate each response objectively using these criteria on a scale of 1-10:
+
+1. **Accuracy**: Is the information factually correct and reliable?
+2. **Completeness**: Does it fully address all aspects of the question?
+3. **Clarity**: Is it easy to understand and well-structured?
+4. **Relevance**: Does it stay on topic and answer what was asked?
+5. **Conciseness**: Is it appropriately brief without unnecessary information?
 
 Original Prompt:
 ${originalPrompt}
 
 Responses to evaluate:
-${request
+${promptResponse
   .map(
     (r, idx) => `
-Response ${idx + 1} (from ${r.model}):
+Response ${String.fromCharCode(65 + idx)}:
 ${r.response}
 `,
   )
   .join("\n---\n")}
 
-Analyze each response carefully and vote for the best one. Respond ONLY with a JSON object in this exact format:
+Respond ONLY with a JSON object in this exact format (no markdown, no extra text):
 {
-  "model": "the model name of the best response",
-  "response": "the full text of the best response"
+  "scores": {
+    "A": { "accuracy": 8, "completeness": 7, "clarity": 9, "relevance": 8, "conciseness": 7 },
+    "B": { "accuracy": 9, "completeness": 8, "clarity": 8, "relevance": 9, "conciseness": 8 },
+    "C": { "accuracy": 7, "completeness": 9, "clarity": 7, "relevance": 8, "conciseness": 6 }
+  },
+  "reasoning": "Brief explanation of your evaluation"
 }
-
-Do not include any explanation or additional text outside the JSON object.
 `;
 
-    const providers = ["google", "openai", "anthropic"];
-    const votes: Array<{ model: string; response: string }> = [];
+    const allScores: Array<{
+      voter: string;
+      scores: Record<
+        string,
+        {
+          accuracy: number;
+          completeness: number;
+          clarity: number;
+          relevance: number;
+          conciseness: number;
+        }
+      >;
+      reasoning?: string;
+    }> = [];
 
     await Promise.all(
-      providers.map(async (provider) => {
+      AIProviders.map(async (provider) => {
         try {
-          const result = await this.generateText(
-            { prompt: votingPrompt },
-            true, // use fast model for voting
-            provider,
-          );
+          const { output } = await generateText({
+            model:
+              provider === "google"
+                ? google(this.secrets.aiModelConfiguration.google.fastModel)
+                : provider === "openai"
+                  ? openai(this.secrets.aiModelConfiguration.openai.fastModel)
+                  : anthropic(
+                      this.secrets.aiModelConfiguration.anthropic.fastModel,
+                    ),
 
-          // Parse the JSON response
-          const cleanedText = result.text
-            .replace(/```json\n?/g, "")
-            .replace(/```\n?/g, "")
-            .trim();
+            prompt: votingPrompt,
+            output: Output.object({
+              schema: MultiCriteriaVoteSchema,
+            }),
+          });
 
-          const parsed = VoteResponseSchema.parse(JSON.parse(cleanedText));
-          votes.push(parsed);
+          allScores.push({
+            voter: provider,
+            scores: output.scores,
+            reasoning: output.reasoning,
+          });
         } catch (error) {
-          console.error(`Error getting vote from ${provider}:`, error);
+          console.error(`Error getting scores from ${provider}:`, error);
         }
       }),
     );
 
-    if (votes.length === 0) {
-      throw new BadRequestError("Failed to get any votes from models");
+    console.log("all scores:", JSON.stringify(allScores, null, 2));
+
+    if (allScores.length === 0) {
+      throw new BadRequestError("Failed to get any scores from models");
     }
 
-    // Count votes for each model/response combination
-    const voteCount = new Map<
+    const aggregateScores = new Map<
       string,
-      { count: number; response: string; model: string }
+      {
+        totalScore: number;
+        criteriaScores: {
+          accuracy: number;
+          completeness: number;
+          clarity: number;
+          relevance: number;
+          conciseness: number;
+        };
+        voteCount: number;
+      }
     >();
 
-    votes.forEach((vote) => {
-      const key = `${vote.model}:${vote.response.substring(0, 100)}`; // Use substring to create unique key
-      const existing = voteCount.get(key);
+    promptResponse.forEach((_, idx) => {
+      const letter = String.fromCharCode(65 + idx);
+      aggregateScores.set(letter, {
+        totalScore: 0,
+        criteriaScores: {
+          accuracy: 0,
+          completeness: 0,
+          clarity: 0,
+          relevance: 0,
+          conciseness: 0,
+        },
+        voteCount: 0,
+      });
+    });
 
-      if (existing) {
-        existing.count++;
-      } else {
-        voteCount.set(key, {
-          count: 1,
-          response: vote.response,
-          model: vote.model,
+    allScores.forEach((vote) => {
+      Object.entries(vote.scores).forEach(([letter, scores]) => {
+        const current = aggregateScores.get(letter);
+        if (current) {
+          current.criteriaScores.accuracy += scores.accuracy;
+          current.criteriaScores.completeness += scores.completeness;
+          current.criteriaScores.clarity += scores.clarity;
+          current.criteriaScores.relevance += scores.relevance;
+          current.criteriaScores.conciseness += scores.conciseness;
+          current.voteCount++;
+        }
+      });
+    });
+
+    aggregateScores.forEach((score) => {
+      if (score.voteCount > 0) {
+        Object.keys(score.criteriaScores).forEach((criterion) => {
+          score.criteriaScores[
+            criterion as keyof typeof score.criteriaScores
+          ] /= score.voteCount;
         });
+
+        score.totalScore =
+          score.criteriaScores.accuracy * 0.25 +
+          score.criteriaScores.completeness * 0.25 +
+          score.criteriaScores.clarity * 0.2 +
+          score.criteriaScores.relevance * 0.2 +
+          score.criteriaScores.conciseness * 0.1;
       }
     });
 
-    // Find the response with most votes
-    let winningVote = { count: 0, response: "", model: "" };
+    console.log(
+      "aggregate scores:",
+      JSON.stringify(Array.from(aggregateScores.entries()), null, 2),
+    );
 
-    voteCount.forEach((vote) => {
-      if (vote.count > winningVote.count) {
-        winningVote = vote;
+    let winningLetter = "";
+    let highestScore = 0;
+
+    aggregateScores.forEach((score, letter) => {
+      if (score.totalScore > highestScore) {
+        highestScore = score.totalScore;
+        winningLetter = letter;
       }
     });
 
-    // If there's a tie, use the first response from the original request
-    if (winningVote.count === 0) {
-      winningVote = {
-        count: 1,
-        response: request[0].response,
-        model: request[0].model,
+    const winningIndex = winningLetter.charCodeAt(0) - 65;
+    const winningResponse = promptResponse[winningIndex];
+
+    if (!winningResponse) {
+      return {
+        text: promptResponse[0]!.response,
       };
     }
 
+    console.log("winning response ", { winningResponse });
+    console.log("winning score:", highestScore.toFixed(2));
+    console.log("detailed scores:", aggregateScores.get(winningLetter));
+
     return {
-      text: winningVote.response,
-      usage: {
-        promptTokens: votes.length * 500, // Approximate
-        completionTokens: votes.length * 100, // Approximate
-        totalTokens: votes.length * 600, // Approximate
-      },
-      finishReason: "stop",
+      text: winningResponse.response,
     };
   }
 }

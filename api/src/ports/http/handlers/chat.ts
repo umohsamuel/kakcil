@@ -1,13 +1,16 @@
 import { SuccessResponse } from "@/infrastructure/responses/success";
 import type ChatService from "@/service/chat";
+import type VotingService from "@/service/voting";
 import { type Request, type Response, Router } from "express";
 
 export default class ChatHandler {
   chatService: ChatService;
+  votingService: VotingService;
   router = Router();
 
-  constructor(chatService: ChatService) {
+  constructor(chatService: ChatService, votingService: VotingService) {
     this.chatService = chatService;
+    this.votingService = votingService;
 
     this.configureRoutes();
   }
@@ -19,7 +22,7 @@ export default class ChatHandler {
 
   private sendMessage = async (req: Request, res: Response) => {
     const { message } = req.body;
-    const response = await this.chatService.sendText(message);
+    const response = await this.votingService.vote(message);
 
     return new SuccessResponse(res, response).send();
   };

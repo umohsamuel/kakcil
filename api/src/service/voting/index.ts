@@ -1,5 +1,15 @@
-export class VotingService {
-  constructor() {}
+import type LLMRepository from "@/domain/llm/repository";
 
-  async vote(llmResponses: string[]) {}
+export default class VotingService {
+  llmRepository: LLMRepository;
+
+  constructor(llmRepository: LLMRepository) {
+    this.llmRepository = llmRepository;
+  }
+
+  async vote(prompt: string) {
+    return await this.llmRepository.vote({
+      prompt,
+    });
+  }
 }

@@ -101,7 +101,10 @@ export default class ExpressHTTP {
   }
 
   chat() {
-    const router = new ChatHandler(this.services.chatService);
+    const router = new ChatHandler(
+      this.services.chatService,
+      this.services.votingService,
+    );
     this.router.use(
       "/chats",
       Authorize(this.services.authenticationService),

@@ -35,9 +35,15 @@ export type GeminiCredentials = {
   apiKey: string;
 };
 
-export type AIModelConfiguration = {
+export type Configuration = {
   model: string;
   fastModel: string;
+};
+
+export type AIModelConfiguration = {
+  google: Configuration;
+  openai: Configuration;
+  anthropic: Configuration;
 };
 
 export type AISDKProvider = "google" | "openai" | "anthropic";
@@ -111,14 +117,36 @@ export default class Secrets {
     };
 
     this.aiModelConfiguration = {
-      model: this.getEnvironmentVariableOrFallback(
-        "AI_MODEL",
-        "gemini-2.5-flash",
-      ),
-      fastModel: this.getEnvironmentVariableOrFallback(
-        "AI_FAST_MODEL",
-        "gemini-2.5-flash",
-      ),
+      google: {
+        model: this.getEnvironmentVariableOrFallback(
+          "Google_AI_MODEL",
+          "gemini-2.5-flash",
+        ),
+        fastModel: this.getEnvironmentVariableOrFallback(
+          "Google_AI_FAST_MODEL",
+          "gemini-2.5-flash",
+        ),
+      },
+      openai: {
+        model: this.getEnvironmentVariableOrFallback(
+          "OPENAI_AI_MODEL",
+          "gpt-5-nano",
+        ),
+        fastModel: this.getEnvironmentVariableOrFallback(
+          "OPENAI_AI_FAST_MODEL",
+          "gpt-5-nano",
+        ),
+      },
+      anthropic: {
+        model: this.getEnvironmentVariableOrFallback(
+          "ANTHROPIC_AI_MODEL",
+          "claude-3",
+        ),
+        fastModel: this.getEnvironmentVariableOrFallback(
+          "ANTHROPIC_AI_FAST_MODEL",
+          "claude-3",
+        ),
+      },
     };
 
     this.openaiAPIKey = this.getEnvironmentVariable("OPENAI_API_KEY");
