@@ -16,5 +16,10 @@ export default interface LLMRepository {
     signal?: AbortSignal,
   ): AsyncGenerator<string>;
 
-  vote(request: VoteRequest): Promise<{ text: string }>;
+  vote(request: VoteRequest): Promise<{
+    prompt: string;
+    model: string;
+    response: string;
+    topic: string;
+  }>;
 }

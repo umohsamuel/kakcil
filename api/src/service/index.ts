@@ -14,7 +14,7 @@ export default class Services {
   constructor(adapter: Adapter) {
     this.userService = new UserService(adapter.userAdapter);
     this.authenticationService = new AuthenticationService(adapter.userAdapter);
-    this.chatService = new ChatService(adapter.llmAdapter);
+    this.chatService = new ChatService(adapter.llmAdapter, adapter.chatAdapter);
     this.votingService = new VotingService(adapter.llmAdapter);
     this.adapter = adapter;
   }

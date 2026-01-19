@@ -6,13 +6,14 @@ import {
 } from "@/domain/llm/entity";
 import { type Pool } from "pg";
 import type Secrets from "@/infrastructure/secrets";
-import { streamText, generateText, Output } from "ai";
+import { streamText, generateText, Output, type ModelMessage } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { google } from "@ai-sdk/google";
 import { anthropic } from "@ai-sdk/anthropic";
 import type LLMRepository from "@/domain/llm/repository";
 import { BadRequestError } from "@/infrastructure/errors/badRequest";
 import { AIProviders } from "@/infrastructure/utils/ai";
+import z from "zod";
 
 export default class LLMAdapter implements LLMRepository {
   secrets: Secrets;
@@ -106,10 +107,20 @@ export default class LLMAdapter implements LLMRepository {
     }
   }
 
-  async vote(request: VoteRequest): Promise<{ text: string }> {
+  async vote(request: VoteRequest): Promise<{
+    prompt: string;
+    model: string;
+    response: string;
+    topic: string;
+  }> {
     if (!request || !request.prompt) {
       throw new BadRequestError("vote request is required");
     }
+
+    const messageHistory = request.history?.map((m) => ({
+      role: m.role,
+      content: m.content,
+    })) as ModelMessage[] | undefined;
 
     const originalPrompt = request.prompt;
 
@@ -117,6 +128,7 @@ export default class LLMAdapter implements LLMRepository {
       prompt: string;
       model: string;
       response: string;
+      topic: string;
     }> = [];
 
     await Promise.all(
@@ -131,13 +143,23 @@ export default class LLMAdapter implements LLMRepository {
                   : anthropic(
                       this.secrets.aiModelConfiguration.anthropic.fastModel,
                     ),
-            prompt: originalPrompt,
+            messages: [
+              ...(messageHistory ?? []),
+              { role: "user", content: originalPrompt },
+            ],
+            output: Output.object({
+              schema: z.object({
+                topic: z.string(),
+                response: z.string(),
+              }),
+            }),
           });
 
           promptResponse.push({
             prompt: originalPrompt,
             model: provider,
-            response: result.text,
+            response: result.output.response,
+            topic: result.output.topic,
           });
         } catch (error) {
           console.error(
@@ -199,7 +221,8 @@ Respond ONLY with a JSON object in this exact format (no markdown, no extra text
           conciseness: number;
         }
       >;
-      reasoning?: string;
+      reasoning: string;
+      topic: string;
     }> = [];
 
     await Promise.all(
@@ -225,6 +248,7 @@ Respond ONLY with a JSON object in this exact format (no markdown, no extra text
             voter: provider,
             scores: output.scores,
             reasoning: output.reasoning,
+            topic: output.topic,
           });
         } catch (error) {
           console.error(`Error getting scores from ${provider}:`, error);
@@ -318,17 +342,13 @@ Respond ONLY with a JSON object in this exact format (no markdown, no extra text
     const winningResponse = promptResponse[winningIndex];
 
     if (!winningResponse) {
-      return {
-        text: promptResponse[0]!.response,
-      };
+      return promptResponse[0]!;
     }
 
     console.log("winning response ", { winningResponse });
     console.log("winning score:", highestScore.toFixed(2));
     console.log("detailed scores:", aggregateScores.get(winningLetter));
 
-    return {
-      text: winningResponse.response,
-    };
+    return winningResponse;
   }
 }

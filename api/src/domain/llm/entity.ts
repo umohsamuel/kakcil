@@ -1,5 +1,6 @@
 import type { GenerateTextResult, ToolSet } from "ai";
 import z from "zod";
+import type { IChatMessage } from "@/domain/chat/entity.ts";
 
 export interface TextGenerationRequest {
   prompt: string;
@@ -19,6 +20,7 @@ export interface TextGenerationResponse {
 
 export interface VoteRequest {
   prompt: string;
+  history?: IChatMessage[];
 }
 
 export const VoteResponseSchema = z.object({
@@ -35,6 +37,7 @@ export const MultiCriteriaScoreSchema = z.object({
 });
 
 export const MultiCriteriaVoteSchema = z.object({
+  topic: z.string(),
   scores: z.object({
     A: MultiCriteriaScoreSchema,
     B: MultiCriteriaScoreSchema,
