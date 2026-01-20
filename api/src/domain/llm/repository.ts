@@ -3,12 +3,16 @@ import type {
   TextGenerationResponse,
   VoteRequest,
 } from "./entity";
+import { type ModelMessage, Output } from "ai";
+import type { LMMScore } from "@/infrastructure/utils/vote.ts";
 
 export default interface LLMRepository {
-  generateText(
+  generateText<T = string>(
     request: TextGenerationRequest,
     useFastModel?: boolean,
-  ): Promise<TextGenerationResponse>;
+    output?: Output.Output<T>,
+    messageHistory?: ModelMessage[],
+  ): Promise<TextGenerationResponse<T>>;
 
   streamText(
     request: TextGenerationRequest,
@@ -16,10 +20,9 @@ export default interface LLMRepository {
     signal?: AbortSignal,
   ): AsyncGenerator<string>;
 
-  vote(request: VoteRequest): Promise<{
-    prompt: string;
-    model: string;
-    response: string;
-    topic: string;
-  }>;
+  vote(
+    request: VoteRequest,
+    llmResponses: (TextGenerationResponse | null)[],
+    useFastModel?: boolean,
+  ): Promise<(LMMScore | null)[]>;
 }

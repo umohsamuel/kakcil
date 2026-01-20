@@ -1,17 +1,20 @@
 import { SuccessResponse } from "@/infrastructure/responses/success";
 import type ChatService from "@/service/chat";
-import type VotingService from "@/service/voting";
 import { type Request, type Response, Router } from "express";
 import { BadRequestError } from "@/infrastructure/errors/badRequest.ts";
+import type { ModelMessage } from "ai";
+import type LLMService from "@/service/llm";
+import { calculateVote } from "@/infrastructure/utils/vote.ts";
+import { getPaginationParams } from "@/infrastructure/utils/pagination.ts";
 
 export default class ChatHandler {
   chatService: ChatService;
-  votingService: VotingService;
+  llmService: LLMService;
   router = Router();
 
-  constructor(chatService: ChatService, votingService: VotingService) {
+  constructor(chatService: ChatService, llmService: LLMService) {
+    this.llmService = llmService;
     this.chatService = chatService;
-    this.votingService = votingService;
 
     this.configureRoutes();
   }
@@ -27,10 +30,13 @@ export default class ChatHandler {
 
   private getChats = async (req: Request, res: Response) => {
     const { id } = req.user as { id: string };
+    const { page, limit } = req.query as { page?: string; limit?: string };
 
-    const chats = await this.chatService.getChats(id);
+    const filters = getPaginationParams(page, limit);
 
-    return new SuccessResponse(res, chats).send();
+    const chats = await this.chatService.getChats(id, filters);
+
+    return new SuccessResponse(res, chats.data, chats.meta).send();
   };
 
   private getMessages = async (req: Request, res: Response) => {
@@ -49,62 +55,224 @@ export default class ChatHandler {
       throw new BadRequestError("Chat ID is required to send message");
     }
 
-    const response = await this.chatService.send(message, id, chat_id);
+    try {
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+      res.setHeader("X-Accel-Buffering", "no");
+      res.flushHeaders();
 
-    return new SuccessResponse(res, response).send();
+      const prevMessages = await this.chatService.getMessages(chat_id);
+
+      const messageHistory = prevMessages?.map((m) => ({
+        role: m.role,
+        content: m.content,
+      })) as ModelMessage[] | undefined;
+
+      const llmResponses = await this.llmService.promptModels(
+        message,
+        true,
+        messageHistory,
+      );
+
+      for (const response of llmResponses) {
+        if (response) {
+          res.write(
+            `event: llmResponse\ndata: LLM Responses ${JSON.stringify({
+              prompt: response.prompt,
+              model: response.model,
+              topic: response.topic,
+              response: response.response,
+            })}\n\n`,
+          );
+        }
+      }
+
+      const llmScores = await this.llmService.llmRepository.vote(
+        {
+          prompt: message,
+          history: prevMessages,
+        },
+        llmResponses,
+        true,
+      );
+
+      for (const scores of llmScores) {
+        if (scores) {
+          res.write(
+            `event: llmVote\ndata: LLM Vote Scores ${JSON.stringify({
+              voter: scores.voter,
+              topic: scores.topic,
+              reasoning: scores.reasoning,
+              scores: scores.scores,
+            })}\n\n`,
+          );
+        }
+      }
+
+      const voteResult = calculateVote(llmResponses, llmScores);
+
+      if (!voteResult || !voteResult.prompt) {
+        res.write(
+          `event: error\ndata: ${JSON.stringify({
+            error: "LLM providers unavailable. Please try again later.",
+          })}\n\n`,
+        );
+        res.end();
+
+        return;
+      }
+
+      res.write(
+        `event: voteResponse\ndata: Vote Response ${JSON.stringify({
+          prompt: voteResult.prompt,
+          model: voteResult.model,
+          topic: voteResult.topic,
+          response: voteResult.response,
+        })}\n\n`,
+      );
+
+      res.on("close", async () => {
+        await this.chatService.chatRepository.addMessage({
+          chat_id,
+          user_id: id,
+          role: "user",
+          content: message,
+        });
+
+        await this.chatService.chatRepository.addMessage({
+          chat_id,
+          user_id: id,
+          role: "assistant",
+          content: voteResult.response,
+          model: voteResult.model,
+        });
+
+        console.log("Client closed connection");
+        res.end();
+      });
+
+      res.end();
+    } catch (error) {
+      res.write(
+        `event: error\ndata: ${JSON.stringify({
+          error: (error as Error).message,
+        })}\n\n`,
+      );
+      res.end();
+
+      return;
+    }
   };
 
   private startNewChat = async (req: Request, res: Response) => {
     const { message } = req.body;
     const { id } = req.user as { id: string };
 
-    const response = await this.chatService.send(message, id);
+    try {
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+      res.setHeader("X-Accel-Buffering", "no");
+      res.flushHeaders();
 
-    return new SuccessResponse(res, response).send();
+      const llmResponses = await this.llmService.promptModels(message, true);
+
+      for (const response of llmResponses) {
+        if (response) {
+          res.write(
+            `event: llmResponse\ndata: LLM Responses ${JSON.stringify({
+              prompt: response.prompt,
+              model: response.model,
+              topic: response.topic,
+              response: response.response,
+            })}\n\n`,
+          );
+        }
+      }
+
+      const llmScores = await this.llmService.llmRepository.vote(
+        {
+          prompt: message,
+        },
+        llmResponses,
+        true,
+      );
+
+      for (const scores of llmScores) {
+        if (scores) {
+          res.write(
+            `event: llmVote\ndata: LLM Vote Scores ${JSON.stringify({
+              voter: scores.voter,
+              topic: scores.topic,
+              reasoning: scores.reasoning,
+              scores: scores.scores,
+            })}\n\n`,
+          );
+        }
+      }
+
+      const voteResult = calculateVote(llmResponses, llmScores);
+
+      if (!voteResult || !voteResult.prompt) {
+        res.write(
+          `event: error\ndata: ${JSON.stringify({
+            error: "LLM providers unavailable. Please try again later.",
+          })}\n\n`,
+        );
+        res.end();
+
+        return;
+      }
+
+      res.write(
+        `event: voteResponse\ndata: Vote Response ${JSON.stringify({
+          prompt: voteResult.prompt,
+          model: voteResult.model,
+          topic: voteResult.topic,
+          response: voteResult.response,
+        })}\n\n`,
+      );
+
+      res.on("close", async () => {
+        if (voteResult && voteResult.prompt) {
+          const chat = await this.chatService.chatRepository.add({
+            model: voteResult.model,
+            user_id: id,
+            title: voteResult.topic as string,
+            system_prompt: voteResult.prompt,
+          });
+
+          await this.chatService.chatRepository.addMessage({
+            chat_id: chat.id,
+            user_id: id,
+            role: "user",
+            content: message,
+          });
+
+          await this.chatService.chatRepository.addMessage({
+            chat_id: chat.id,
+            user_id: id,
+            role: "assistant",
+            content: voteResult.response,
+            model: voteResult.model,
+          });
+        }
+
+        console.log("Client closed connection");
+        res.end();
+      });
+
+      res.end();
+    } catch (error) {
+      res.write(
+        `event: error\ndata: ${JSON.stringify({
+          error: (error as Error).message,
+        })}\n\n`,
+      );
+      res.end();
+
+      return;
+    }
   };
-
-  // private streamMessage = async (req: Request, res: Response) => {
-  //   try {
-  //     const { message } = req.body;
-  //
-  //     res.setHeader("Content-Type", "text/event-stream");
-  //     res.setHeader("Cache-Control", "no-cache");
-  //     res.setHeader("Connection", "keep-alive");
-  //     res.setHeader("X-Accel-Buffering", "no");
-  //
-  //     const abortController = new AbortController();
-  //
-  //     req.on("close", () => {
-  //       abortController.abort();
-  //     });
-  //
-  //     const response = await this.chatService.streamText(
-  //       message,
-  //       false,
-  //       abortController.signal,
-  //     );
-  //
-  //     for await (const chunk of response) {
-  //       if (abortController.signal.aborted) {
-  //         break;
-  //       }
-  //       res.write(`data: ${chunk}\n\n`);
-  //     }
-  //
-  //     res.end();
-  //   } catch (error) {
-  //     console.error("streamMessage streaming error:", error);
-  //
-  //     if (!res.headersSent) {
-  //       res.status(500).json({
-  //         error: error instanceof Error ? error.message : "Unknown error",
-  //       });
-  //     } else {
-  //       res.write(
-  //         `data: [ERROR] ${error instanceof Error ? error.message : "Unknown error"}\n\n`,
-  //       );
-  //       res.end();
-  //     }
-  //   }
-  // };
 }

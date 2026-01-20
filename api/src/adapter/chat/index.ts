@@ -2,6 +2,8 @@ import type { IChat, IChatMessage } from "@/domain/chat/entity";
 import type ChatRepository from "@/domain/chat/repository.ts";
 import type { Pool } from "pg";
 import { BadRequestError } from "@/infrastructure/errors/badRequest.ts";
+import type { PaginationParams } from "@/infrastructure/utils/pagination.ts";
+import type { Pagination } from "@/infrastructure/types/pagination.ts";
 
 export default class ChatAdapter implements ChatRepository {
   pgPool: Pool;
@@ -10,14 +12,46 @@ export default class ChatAdapter implements ChatRepository {
     this.pgPool = pgPool;
   }
 
-  async getAll(user_id: string): Promise<IChat[]> {
+  async getAll(
+    user_id: string,
+    filters: PaginationParams,
+  ): Promise<{
+    data: IChat[];
+    meta: Pagination;
+  }> {
+    if (!user_id) {
+      throw new BadRequestError("User ID is required");
+    }
+
+    const count = await this.pgPool.query(
+      `SELECT COUNT(*) FROM chats WHERE user_id = $1;`,
+      [user_id],
+    );
+
+    const totalPages = Math.ceil(parseInt(count.rows[0].count) / filters.limit);
+
     const query = `
-    SELECT * FROM chats WHERE user_id = $1 ORDER BY created_at DESC;
+    SELECT * FROM chats WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3;
   `;
 
-    const result = await this.pgPool.query(query, [user_id]);
+    const result = await this.pgPool.query(query, [
+      user_id,
+      filters.limit,
+      filters.offset,
+    ]);
 
-    return result.rows as IChat[];
+    return {
+      data: result.rows as IChat[],
+      meta: {
+        page: filters.page,
+        limit: filters.limit,
+        total: result.rows.length,
+        totalPages,
+      },
+    } as {
+      data: IChat[];
+      meta: Pagination;
+    };
   }
 
   async add(chat: Omit<IChat, "id">): Promise<IChat> {

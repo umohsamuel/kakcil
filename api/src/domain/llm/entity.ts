@@ -1,4 +1,3 @@
-import type { GenerateTextResult, ToolSet } from "ai";
 import z from "zod";
 import type { IChatMessage } from "@/domain/chat/entity.ts";
 
@@ -7,21 +6,21 @@ export interface TextGenerationRequest {
   model?: string;
 }
 
-export interface TextGenerationResponse {
-  text: string;
-  result: GenerateTextResult<ToolSet, any>;
-  usage: {
-    promptTokens?: number;
-    completionTokens?: number;
-    totalTokens?: number;
-  };
-  finishReason: string;
+export interface TextGenerationResponse<T = string> {
+  prompt: string;
+  model: string;
+  response: T;
+  topic?: string;
 }
 
 export interface VoteRequest {
   prompt: string;
   history?: IChatMessage[];
 }
+
+// export interface VoteResponse {
+//
+// }
 
 export const VoteResponseSchema = z.object({
   model: z.string(),

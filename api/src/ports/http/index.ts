@@ -103,7 +103,7 @@ export default class ExpressHTTP {
   chat() {
     const router = new ChatHandler(
       this.services.chatService,
-      this.services.votingService,
+      this.services.llmService,
     );
     this.router.use(
       "/chats",
