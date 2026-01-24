@@ -132,25 +132,22 @@ export default class ChatHandler {
         })}\n\n`,
       );
 
-      res.on("close", async () => {
-        await this.chatService.chatRepository.addMessage({
-          chat_id,
-          user_id: id,
-          role: "user",
-          content: message,
-        });
-
-        await this.chatService.chatRepository.addMessage({
-          chat_id,
-          user_id: id,
-          role: "assistant",
-          content: voteResult.response,
-          model: voteResult.model,
-        });
-
-        console.log("Client closed connection");
-        res.end();
+      await this.chatService.chatRepository.addMessage({
+        chat_id,
+        user_id: id,
+        role: "user",
+        content: message,
       });
+
+      await this.chatService.chatRepository.addMessage({
+        chat_id,
+        user_id: id,
+        role: "assistant",
+        content: voteResult.response,
+        model: voteResult.model,
+      });
+
+      console.log("Client closed connection");
 
       res.end();
     } catch (error) {
@@ -234,34 +231,37 @@ export default class ChatHandler {
         })}\n\n`,
       );
 
-      res.on("close", async () => {
-        if (voteResult && voteResult.prompt) {
-          const chat = await this.chatService.chatRepository.add({
-            model: voteResult.model,
-            user_id: id,
-            title: voteResult.topic as string,
-            system_prompt: voteResult.prompt,
-          });
+      if (voteResult && voteResult.prompt) {
+        const chat = await this.chatService.chatRepository.add({
+          model: voteResult.model,
+          user_id: id,
+          title: voteResult.topic as string,
+          system_prompt: voteResult.prompt,
+        });
 
-          await this.chatService.chatRepository.addMessage({
+        res.write(
+          `event: chatId\ndata: Chat ID ${JSON.stringify({
             chat_id: chat.id,
-            user_id: id,
-            role: "user",
-            content: message,
-          });
+          })}\n\n`,
+        );
 
-          await this.chatService.chatRepository.addMessage({
-            chat_id: chat.id,
-            user_id: id,
-            role: "assistant",
-            content: voteResult.response,
-            model: voteResult.model,
-          });
-        }
+        await this.chatService.chatRepository.addMessage({
+          chat_id: chat.id,
+          user_id: id,
+          role: "user",
+          content: message,
+        });
 
-        console.log("Client closed connection");
-        res.end();
-      });
+        await this.chatService.chatRepository.addMessage({
+          chat_id: chat.id,
+          user_id: id,
+          role: "assistant",
+          content: voteResult.response,
+          model: voteResult.model,
+        });
+      }
+
+      console.log("Client closed connection");
 
       res.end();
     } catch (error) {

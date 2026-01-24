@@ -3,28 +3,34 @@
 import { useState, useRef, useEffect } from "react";
 import { ProtectedRoute } from "@/components/protected-route";
 import { useAuth } from "@/hooks/use-auth";
-import { useChat, useMessages } from "@/hooks/use-chat";
+import { useMessages } from "@/hooks/use-chat";
+import { useFlowSSEChat } from "@/hooks/use-sse-chat";
 import { useParams } from "next/navigation";
-import { ChatMessage } from "@/types/chat";
-import { CouncilDebateModal } from "@/components/council-debate-modal";
+import { FlowCanvas } from "@/components/flow-canvas";
 import { MarkdownMessage } from "@/components/markdown-message";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { LogOut, Send, Copy, Check } from "lucide-react";
+import { LogOut, Send, Copy, Check, X, Loader2 } from "lucide-react";
 import Image from "next/image";
 import { toast } from "sonner";
+import { Node } from "reactflow";
 
 function ChatDetailPageContent() {
   const { user, logout } = useAuth();
   const params = useParams();
   const chatId = params.id as string;
-  const { sendMessageAsync, isSending } = useChat(chatId);
-  const { messages, isLoading: isLoadingMessages } = useMessages(chatId);
+  const { messages, isLoading: isLoadingMessages, refetch } = useMessages(chatId);
+  const {
+    flowState,
+    onNodesChange,
+    onEdgesChange,
+    startStreaming,
+    getRoundFromNodeId,
+  } = useFlowSSEChat(chatId);
   const [input, setInput] = useState("");
-  const [debatingMessageId, setDebatingMessageId] = useState<string | null>(
-    null
-  );
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -41,30 +47,33 @@ function ChatDetailPageContent() {
     }
   }, [input]);
 
+  // Refetch messages when conversation finishes
+  useEffect(() => {
+    if (!flowState.isStreaming && flowState.finalResponse) {
+      setTimeout(() => {
+        refetch();
+      }, 1000);
+    }
+  }, [flowState.isStreaming, flowState.finalResponse, refetch]);
+
+  // Open sidebar when streaming starts
+  useEffect(() => {
+    if (flowState.isStreaming) {
+      setSidebarOpen(true);
+    }
+  }, [flowState.isStreaming]);
+
   const handleSendMessage = async () => {
-    if (!input.trim() || isSending) return;
+    if (!input.trim() || flowState.isStreaming) return;
 
-    const userMessage: ChatMessage = {
-      id: Date.now().toString(),
-      role: "user",
-      content: input.trim(),
-      timestamp: new Date(),
-    };
-
+    const message = input.trim();
     setInput("");
-
-    const assistantMessageId = (Date.now() + 1).toString();
-    setDebatingMessageId(assistantMessageId);
+    setSidebarOpen(true);
 
     try {
-      await sendMessageAsync({ 
-        message: userMessage.content,
-        chat_id: chatId 
-      });
+      await startStreaming(message, chatId);
     } catch (error) {
       toast.error("Sorry, there was an error processing your request.");
-    } finally {
-      setDebatingMessageId(null);
     }
   };
 
@@ -82,6 +91,86 @@ function ChatDetailPageContent() {
     toast.success("Copied to clipboard");
   };
 
+  const handleNodeClick = (event: React.MouseEvent, node: Node) => {
+    if (node.type === "modelResponse" || node.type === "finalAnswer" || node.type === "userPrompt") {
+      setSelectedNodeId(node.id);
+      setSidebarOpen(true);
+    }
+  };
+
+  // Get context for the selected node based on its round
+  const getSelectedContext = () => {
+    if (!selectedNodeId) return null;
+    
+    const round = getRoundFromNodeId(selectedNodeId);
+    const roundData = flowState.rounds[round];
+    
+    if (!roundData) {
+      // Fallback to current round data
+      return {
+        prompt: flowState.userMessage,
+        modelNodes: flowState.modelNodes,
+        finalResponse: flowState.finalResponse,
+        round: flowState.conversationRound,
+      };
+    }
+
+    return { ...roundData, round };
+  };
+
+  // Get the specific model from the selected node
+  const getModelFromNodeId = (nodeId: string | null): string | null => {
+    if (!nodeId) return null;
+    if (nodeId.startsWith("model-")) {
+      const parts = nodeId.replace("model-", "").split("-r");
+      return parts[0] || null;
+    }
+    return null;
+  };
+
+  const selectedContext = getSelectedContext();
+  const selectedModel = getModelFromNodeId(selectedNodeId);
+  const selectedModelNode = selectedModel && selectedContext
+    ? selectedContext.modelNodes.find((n) => n.model === selectedModel)
+    : null;
+  const isFinalAnswerSelected = selectedNodeId?.startsWith("final-");
+
+  // Get display content for sidebar
+  const getSidebarContent = () => {
+    if (!selectedContext) return null;
+
+    if (selectedModel && selectedModelNode) {
+      return {
+        title: selectedModelNode.model,
+        isWinner: selectedModelNode.status === "winner",
+        prompt: selectedContext.prompt,
+        response: selectedModelNode.response,
+      };
+    }
+
+    if (isFinalAnswerSelected && selectedContext.finalResponse) {
+      return {
+        title: `Final Answer (${selectedContext.finalResponse.model})`,
+        isWinner: true,
+        prompt: selectedContext.prompt,
+        response: selectedContext.finalResponse.response,
+      };
+    }
+
+    if (selectedNodeId?.startsWith("prompt-")) {
+      return {
+        title: "Your Question",
+        isWinner: false,
+        prompt: selectedContext.prompt,
+        response: null,
+      };
+    }
+
+    return null;
+  };
+
+  const sidebarContent = getSidebarContent();
+
   if (isLoadingMessages) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -90,10 +179,10 @@ function ChatDetailPageContent() {
     );
   }
 
-  return (
-    <div className={"h-full w-full"}>
-      <CouncilDebateModal isOpen={debatingMessageId !== null} />
+  const showCanvas = flowState.nodes.length > 0;
 
+  return (
+    <div className="h-full w-full">
       <main className="relative flex h-full flex-1 flex-col">
         {/* Mobile Header */}
         <header className="flex h-16 shrink-0 items-center justify-between border-b border-black/10 px-4 md:hidden">
@@ -108,111 +197,242 @@ function ChatDetailPageContent() {
 
         {/* Chat Area */}
         <div className="relative flex flex-1 flex-col overflow-hidden">
-          {messages.length === 0 && (
-            <div className="flex flex-1 flex-col items-center justify-center space-y-4 p-8 text-center">
-              <div className="bg-foreground/5 mb-4 flex h-20 w-20 items-center justify-center rounded-full">
-                <Image
-                  src="/logo.png"
-                  alt="Kakcil Logo"
-                  width={40}
-                  height={40}
-                  className={"invert-100 dark:invert-0"}
+          {/* Show canvas when actively streaming a new message */}
+          {showCanvas ? (
+            <div className="flex h-full">
+              {/* Canvas */}
+              <div className="flex-1">
+                <FlowCanvas
+                  nodes={flowState.nodes}
+                  edges={flowState.edges}
+                  onNodesChange={onNodesChange}
+                  onEdgesChange={onEdgesChange}
+                  onNodeClick={handleNodeClick}
                 />
               </div>
-              <h2 className="text-2xl font-bold">No Messages Yet</h2>
-              <p className="text-foreground/60 max-w-md">
-                Start the conversation by sending a message below.
-              </p>
-            </div>
-          )}
 
-          {messages.length > 0 && (
-            <div
-              className="mx-auto w-full flex-1 overflow-y-auto scroll-smooth px-4 py-6 md:px-8"
-              ref={scrollRef}
-            >
-              <div className={"mx-auto flex max-w-[720px] flex-col gap-12"}>
-                {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`flex items-start gap-3 ${
-                      message.role === "user" ? "justify-end" : "justify-start"
-                    }`}
-                  >
-                    <div
-                      className={`relative ${
-                        message.role === "user"
-                          ? "max-w-[85%] rounded-2xl rounded-tr-sm bg-black px-6 py-4 text-white sm:max-w-[75%]"
-                          : "group w-full font-mono text-base"
-                      }`}
-                    >
-                      {message.role === "user" ? (
-                        <div className="leading-relaxed whitespace-pre-wrap">
-                          {message.content}
-                        </div>
-                      ) : (
-                        <>
-                          <MarkdownMessage content={message.content} />
-                          <button
-                            onClick={() =>
-                              handleCopy(message.content, message.id)
-                            }
-                            className="cursor-pointer rounded-sm border border-black/10 bg-white p-1.5 hover:bg-gray-50"
-                            title="Copy message"
-                          >
-                            {copiedId === message.id ? (
-                              <Check className="h-3.5 w-3.5 text-green-600" />
-                            ) : (
-                              <Copy className="h-3.5 w-3.5 text-gray-600" />
-                            )}
-                          </button>
-                        </>
-                      )}
-                      {message.role === "user" && message.timestamp && (
-                        <span className="mt-2 block text-[10px] opacity-60">
-                          {new Date(message.timestamp).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
+              {/* Sidebar for selected node */}
+              {sidebarOpen && (
+                <div className="flex h-full w-[450px] flex-col border-l border-gray-300 bg-white dark:border-gray-700 dark:bg-gray-900">
+                  <div className="flex items-center justify-between border-b border-gray-300 p-4 dark:border-gray-700">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-sm font-bold uppercase tracking-wide text-gray-900 dark:text-gray-100">
+                        {sidebarContent?.title || "Council Response"}
+                      </span>
+                      {sidebarContent?.isWinner && (
+                        <span className="text-xs font-semibold text-yellow-600">
+                          🏆 Winner
                         </span>
                       )}
+                      {flowState.isStreaming && (
+                        <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                      )}
                     </div>
-
-                    {message.role === "user" && (
-                      <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-gray-700 to-gray-900 text-xs font-bold text-white">
-                        {user?.name?.[0] || "U"}
-                      </div>
-                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        setSidebarOpen(false);
+                        setSelectedNodeId(null);
+                      }}
+                    >
+                      <X className="h-5 w-5" />
+                    </Button>
                   </div>
-                ))}
+                  
+                  <div className="flex-1 overflow-y-auto p-4">
+                    <div className="space-y-6">
+                      {/* Round indicator */}
+                      {selectedContext && selectedContext.round > 0 && (
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          Round {selectedContext.round + 1}
+                        </div>
+                      )}
+
+                      {/* User Message */}
+                      {sidebarContent?.prompt && (
+                        <div className="flex items-start justify-end gap-3">
+                          <div className="max-w-[85%] rounded-2xl rounded-tr-sm bg-black px-6 py-4 text-white dark:bg-gray-800">
+                            <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                              {sidebarContent.prompt}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Response */}
+                      {sidebarContent?.response && (
+                        <div className="group w-full">
+                          <div className="font-mono text-sm">
+                            <MarkdownMessage content={sidebarContent.response} />
+                          </div>
+                          {!flowState.isStreaming && (
+                            <Button
+                              onClick={() => handleCopy(sidebarContent.response!, "sidebar")}
+                              variant="outline"
+                              size="sm"
+                              className="mt-2"
+                            >
+                              {copiedId === "sidebar" ? (
+                                <>
+                                  <Check className="mr-2 h-4 w-4 text-green-600" />
+                                  Copied
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="mr-2 h-4 w-4" />
+                                  Copy Response
+                                </>
+                              )}
+                            </Button>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Loading indicator */}
+                      {flowState.isStreaming && !sidebarContent?.response && (
+                        <div className="flex items-center gap-2 text-gray-500">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          <span className="text-sm">Council is deliberating...</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Input in sidebar */}
+                  <div className="border-t border-gray-300 p-4 dark:border-gray-700">
+                    <div className="flex items-end gap-2 rounded-2xl border-2 border-gray-900 bg-gray-900 p-2 focus-within:border-gray-700 dark:border-gray-100 dark:bg-gray-100">
+                      <Textarea
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        placeholder="Ask another question..."
+                        className="max-h-[200px] min-h-[50px] w-full resize-none border-0 bg-transparent px-2 py-3 text-sm text-white placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 dark:text-gray-900 dark:placeholder:text-gray-600"
+                        disabled={flowState.isStreaming}
+                        rows={1}
+                      />
+                      <Button
+                        onClick={handleSendMessage}
+                        disabled={!input.trim() || flowState.isStreaming}
+                        size="icon"
+                        className="h-10 w-10 shrink-0 rounded-lg bg-white text-gray-900 hover:bg-gray-100 dark:bg-gray-900 dark:text-gray-100 dark:hover:bg-gray-800"
+                      >
+                        <Send className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              {/* Historical Messages - Traditional Chat Format */}
+              {messages.length > 0 ? (
+                <div
+                  className="mx-auto w-full flex-1 overflow-y-auto scroll-smooth px-4 py-6 md:px-8"
+                  ref={scrollRef}
+                >
+                  <div className="mx-auto flex max-w-[720px] flex-col gap-12">
+                    {messages.map((message) => (
+                      <div
+                        key={message.id}
+                        className={`flex items-start gap-3 ${
+                          message.role === "user" ? "justify-end" : "justify-start"
+                        }`}
+                      >
+                        <div
+                          className={`relative ${
+                            message.role === "user"
+                              ? "max-w-[85%] rounded-2xl rounded-tr-sm bg-black px-6 py-4 text-white sm:max-w-[75%]"
+                              : "group w-full font-mono text-base"
+                          }`}
+                        >
+                          {message.role === "user" ? (
+                            <div className="whitespace-pre-wrap leading-relaxed">
+                              {message.content}
+                            </div>
+                          ) : (
+                            <>
+                              <MarkdownMessage content={message.content} />
+                              <button
+                                onClick={() => handleCopy(message.content, message.id)}
+                                className="cursor-pointer rounded-sm border border-black/10 bg-white p-1.5 hover:bg-gray-50"
+                                title="Copy message"
+                              >
+                                {copiedId === message.id ? (
+                                  <Check className="h-3.5 w-3.5 text-green-600" />
+                                ) : (
+                                  <Copy className="h-3.5 w-3.5 text-gray-600" />
+                                )}
+                              </button>
+                            </>
+                          )}
+                          {message.role === "user" && message.timestamp && (
+                            <span className="mt-2 block text-[10px] opacity-60">
+                              {new Date(message.timestamp).toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </span>
+                          )}
+                        </div>
+
+                        {message.role === "user" && (
+                          <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-gray-700 to-gray-900 text-xs font-bold text-white">
+                            {user?.name?.[0] || "U"}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-1 flex-col items-center justify-center space-y-4 p-8 text-center">
+                  <div className="bg-foreground/5 mb-4 flex h-20 w-20 items-center justify-center rounded-full">
+                    <Image
+                      src="/logo.png"
+                      alt="Kakcil Logo"
+                      width={40}
+                      height={40}
+                      className="invert-100 dark:invert-0"
+                    />
+                  </div>
+                  <h2 className="text-2xl font-bold">No Messages Yet</h2>
+                  <p className="text-foreground/60 max-w-md">
+                    Start the conversation by sending a message below.
+                  </p>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Input Area - Always at bottom when canvas not showing */}
+          {!showCanvas && (
+            <div className="bg-background border-foreground/10 border-t p-4 md:p-6">
+              <div className="relative mx-auto max-w-3xl">
+                <div className="border-background/10 bg-foreground focus-within:border-background/30 flex items-center gap-2 rounded-2xl border-2 p-2 transition-colors">
+                  <Textarea
+                    ref={textareaRef}
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Ask the council..."
+                    className="placeholder:text-background/50 text-background max-h-[200px] min-h-[50px] w-full resize-none border-0 bg-transparent px-2 py-3 text-base outline-none ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                    disabled={flowState.isStreaming}
+                    rows={1}
+                  />
+                  <Button
+                    onClick={handleSendMessage}
+                    disabled={!input.trim() || flowState.isStreaming}
+                    size="icon"
+                    className="bg-background text-foreground hover:bg-background/90 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
+                  >
+                    <Send className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             </div>
           )}
-
-          <div className="bg-background border-foreground/10 border-t p-4 md:p-6">
-            <div className="relative mx-auto max-w-3xl">
-              <div className="border-background/10 bg-foreground focus-within:border-background/30 flex items-center gap-2 rounded-2xl border-2 p-2 transition-colors">
-                <Textarea
-                  ref={textareaRef}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Ask the council..."
-                  className="placeholder:text-background/50 text-background max-h-[200px] min-h-[50px] w-full resize-none border-0 bg-transparent px-2 py-3 text-base ring-0 outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                  disabled={isSending}
-                  rows={1}
-                />
-                <Button
-                  onClick={handleSendMessage}
-                  disabled={!input.trim() || isSending}
-                  size="icon"
-                  className="bg-background text-foreground hover:bg-background/90 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
-                >
-                  <Send className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
         </div>
       </main>
     </div>

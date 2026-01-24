@@ -74,3 +74,53 @@ export interface StartChatResponse {
 export type GetChatsResponse = Chat[];
 export type GetMessagesResponse = ChatMessage[];
 
+// SSE Event Types
+export type SSEEventType = 'llmResponse' | 'llmVote' | 'voteResponse' | 'error';
+
+export interface LLMResponseEvent {
+  prompt: string;
+  model: string;
+  topic: string;
+  response: string;
+}
+
+export interface LLMVoteEvent {
+  voter: string;
+  topic: string;
+  reasoning: string;
+  scores: Record<string, any>;
+}
+
+export interface VoteResponseEvent {
+  prompt: string;
+  model: string;
+  topic: string;
+  response: string;
+}
+
+export interface ErrorEvent {
+  error: string;
+}
+
+// Canvas Visualization States
+export type ModelNodeStatus = 'idle' | 'generating' | 'completed' | 'voting' | 'winner';
+
+export interface ModelNode {
+  model: string;
+  status: ModelNodeStatus;
+  response?: string;
+  topic?: string;
+  prompt?: string;
+  position?: { x: number; y: number };
+  votes?: number;
+}
+
+export interface ConversationState {
+  userMessage: string;
+  modelNodes: ModelNode[];
+  votingResults: LLMVoteEvent[];
+  finalResponse?: VoteResponseEvent;
+  isStreaming: boolean;
+  error?: string;
+}
+
