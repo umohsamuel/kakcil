@@ -17,6 +17,7 @@ import Image from "next/image";
 import { useAuth } from "@/hooks/use-auth";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
+import { CouncilMembersSettings } from "@/components/council-members-settings";
 
 export default function SettingsPage() {
   const { user } = useAuthStore();
@@ -103,6 +104,9 @@ export default function SettingsPage() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Council Members Section */}
+            <CouncilMembersSettings />
 
             <Card className="border-2 border-border">
               <CardHeader>

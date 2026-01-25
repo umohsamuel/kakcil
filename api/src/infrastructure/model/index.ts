@@ -52,8 +52,24 @@ export const MODEL_DESCRIPTIONS: Record<ModelName, string> = {
   "gpt-3.5-turbo": "Cost-effective model for general use",
 
   // Google Models
-  "gemini-2.0-flash-exp": "Experimental next-gen Gemini model",
-  "gemini-1.5-pro": "Advanced Gemini with large context window",
-  "gemini-1.5-flash": "Fast and efficient Gemini model",
-  "gemini-1.0-pro": "Stable Gemini for general tasks",
+  "gemini-3-pro-preview":
+    "The best model in the world for multimodal understanding, and our most powerful agentic and vibe-coding model yet, delivering richer visuals and deeper interactivity, all built on a foundation of state-of-the-art reasoning.",
+
+  "gemini-3-flash-preview":
+    "Our most balanced model built for speed, scale, and frontier intelligence.",
+
+  "gemini-2.5-flash":
+    "Our best model in terms of price-performance, offering well-rounded capabilities. 2.5 Flash is best for large scale processing, low-latency, high volume tasks that require thinking, and agentic use cases.",
+
+  "gemini-2.5-flash-lite":
+    "Our fastest flash model optimized for cost-efficiency and high throughput.",
+
+  "gemini-2.5-pro":
+    "Our state-of-the-art thinking model, capable of reasoning over complex problems in code, math, and STEM, as well as analyzing large datasets, codebases, and documents using long context.",
+
+  "gemini-2.0-flash":
+    "Gemini 2.0 Flash is deprecated and will be shut down on March 31, 2026.",
+
+  "gemini-2.0-flash-lite":
+    "Gemini 2.0 Flash-Lite is deprecated and will be shut down on March 31, 2026.",
 };

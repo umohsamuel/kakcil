@@ -25,5 +25,9 @@ export const queryKeys = {
         ? [...queryKeys.chat.all, "messages", chatId]
         : [...queryKeys.chat.all, "messages"],
   },
+  council: {
+    all: ["council"] as const,
+    members: () => [...queryKeys.council.all, "members"] as const,
+  },
 } as const;
 
