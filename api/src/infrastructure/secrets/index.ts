@@ -46,7 +46,7 @@ export type AIModelConfiguration = {
   anthropic: Configuration;
 };
 
-export type AISDKProvider = "google" | "openai" | "anthropic";
+// export type AISDKProvider = "google" | "openai" | "anthropic";
 
 config();
 
@@ -65,7 +65,7 @@ export default class Secrets {
   mailerCredentials: MailerCredentials;
   geminiCredentials: GeminiCredentials;
   openaiAPIKey: string;
-  aisdkProvider: AISDKProvider;
+  // aisdkProvider: AISDKProvider;
   aiModelConfiguration: AIModelConfiguration;
 
   constructor() {
@@ -151,10 +151,10 @@ export default class Secrets {
 
     this.openaiAPIKey = this.getEnvironmentVariable("OPENAI_API_KEY");
 
-    this.aisdkProvider = this.getEnvironmentVariableOrFallback(
-      "AI_SDK_PROVIDER",
-      "google",
-    ) as AISDKProvider;
+    // this.aisdkProvider = this.getEnvironmentVariableOrFallback(
+    //   "AI_SDK_PROVIDER",
+    //   "google",
+    // ) as AISDKProvider;
   }
 
   getEnvironmentVariable(key: string): string {

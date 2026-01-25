@@ -1,7 +1,7 @@
 import type LLMRepository from "@/domain/llm/repository.ts";
-import { AIProviders } from "@/infrastructure/utils/ai.ts";
 import { type ModelMessage, Output } from "ai";
 import z from "zod";
+import type { CouncilMember } from "@/domain/council/entity.ts";
 
 export default class LLMService {
   llmRepository: LLMRepository;
@@ -12,7 +12,7 @@ export default class LLMService {
 
   async promptModels(
     prompt: string,
-    useFastModel?: boolean,
+    councilMembers: CouncilMember[],
     messageHistory?: ModelMessage[],
   ) {
     const schema = z.object({
@@ -23,14 +23,14 @@ export default class LLMService {
     type SchemaType = z.infer<typeof schema>;
 
     return await Promise.all(
-      AIProviders.map(async (provider) => {
+      councilMembers.map(async (member) => {
+        console.log(" this is a log inside Prompt models, ", { member });
         try {
           const result = await this.llmRepository.generateText<SchemaType>(
             {
               prompt,
-              model: provider,
+              model: member.model_name,
             },
-            useFastModel,
             Output.object({
               schema,
             }),
@@ -39,13 +39,13 @@ export default class LLMService {
 
           return {
             prompt,
-            model: provider,
+            model: member.model_name,
             topic: result.response.topic,
             response: result.response.response,
           };
         } catch (error) {
           console.error(
-            `Error getting prompt response from ${provider}:`,
+            `Error getting prompt response from ${member.model_name}:`,
             error,
           );
 

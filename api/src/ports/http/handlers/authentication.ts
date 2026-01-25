@@ -14,15 +14,23 @@ import {
 import type { IUser } from "@/domain/user/entity";
 import { ForbiddenError } from "@/infrastructure/errors/forbidden";
 import { ApiError } from "@/infrastructure/errors";
+import type Adapter from "@/adapter";
+import { DEFAULT_COUNCIL_MODELS } from "@/infrastructure/model";
 
 export default class AuthenticationHandler {
   authenticationService: AuthenticationService;
   secrets: Secrets;
+  adapter: Adapter;
   router = Router();
 
-  constructor(authenticationService: AuthenticationService, secrets: Secrets) {
+  constructor(
+    authenticationService: AuthenticationService,
+    secrets: Secrets,
+    adapter: Adapter,
+  ) {
     this.authenticationService = authenticationService;
     this.secrets = secrets;
+    this.adapter = adapter;
 
     this.configureRoutes();
   }
@@ -78,6 +86,15 @@ export default class AuthenticationHandler {
       name,
       is_verified,
     });
+
+    await this.adapter.councilAdapter.createMany(
+      DEFAULT_COUNCIL_MODELS.map((model) => ({
+        userId: user.id as string,
+        modelName: model,
+        provider: this.adapter.modelAdapter.getProviderByModelName(model)!,
+        isActive: true,
+      })),
+    );
 
     new SuccessResponse(res, user).send();
   };

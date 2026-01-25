@@ -15,6 +15,7 @@ import type Services from "@/service";
 import AuthenticationHandler from "./handlers/authentication";
 import { Authorize } from "./middlewares/authorization";
 import ChatHandler from "./handlers/chat";
+import CouncilHandler from "@/ports/http/handlers/council.ts";
 
 export default class ExpressHTTP {
   secrets: Secrets;
@@ -50,6 +51,7 @@ export default class ExpressHTTP {
 
     this.user();
     this.chat();
+    this.council();
 
     this.server.use(Route404);
     this.server.use(ErrorHandlerMiddleware);
@@ -87,6 +89,7 @@ export default class ExpressHTTP {
     const router = new AuthenticationHandler(
       this.services.authenticationService,
       this.secrets,
+      this.adapter,
     );
     this.server.use("/auth", router.router);
   }
@@ -104,9 +107,19 @@ export default class ExpressHTTP {
     const router = new ChatHandler(
       this.services.chatService,
       this.services.llmService,
+      this.services.councilService,
     );
     this.router.use(
       "/chats",
+      Authorize(this.services.authenticationService),
+      router.router,
+    );
+  }
+
+  council() {
+    const router = new CouncilHandler(this.services.councilService);
+    this.router.use(
+      "/council",
       Authorize(this.services.authenticationService),
       router.router,
     );

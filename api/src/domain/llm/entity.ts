@@ -1,9 +1,10 @@
 import z from "zod";
 import type { IChatMessage } from "@/domain/chat/entity.ts";
+import type { ModelName } from "@/domain/model/entity.ts";
 
 export interface TextGenerationRequest {
   prompt: string;
-  model?: string;
+  model: ModelName;
 }
 
 export interface TextGenerationResponse<T = string> {
@@ -17,10 +18,6 @@ export interface VoteRequest {
   prompt: string;
   history?: IChatMessage[];
 }
-
-// export interface VoteResponse {
-//
-// }
 
 export const VoteResponseSchema = z.object({
   model: z.string(),
@@ -45,8 +42,3 @@ export const MultiCriteriaVoteSchema = z.object({
   }),
   reasoning: z.string(),
 });
-
-// export const VoteSchema = z.object({
-//   winner: z.string(),
-//   reasoning: z.string(),
-// });

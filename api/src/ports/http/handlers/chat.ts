@@ -6,15 +6,22 @@ import type { ModelMessage } from "ai";
 import type LLMService from "@/service/llm";
 import { calculateVote } from "@/infrastructure/utils/vote.ts";
 import { getPaginationParams } from "@/infrastructure/utils/pagination.ts";
+import type CouncilService from "@/service/council";
 
 export default class ChatHandler {
   chatService: ChatService;
   llmService: LLMService;
+  councilService: CouncilService;
   router = Router();
 
-  constructor(chatService: ChatService, llmService: LLMService) {
+  constructor(
+    chatService: ChatService,
+    llmService: LLMService,
+    councilService: CouncilService,
+  ) {
     this.llmService = llmService;
     this.chatService = chatService;
+    this.councilService = councilService;
 
     this.configureRoutes();
   }
@@ -62,6 +69,9 @@ export default class ChatHandler {
       res.setHeader("X-Accel-Buffering", "no");
       res.flushHeaders();
 
+      const councilMembers =
+        await this.councilService.getUserCouncilMembers(id);
+
       const prevMessages = await this.chatService.getMessages(chat_id);
 
       const messageHistory = prevMessages?.map((m) => ({
@@ -71,7 +81,7 @@ export default class ChatHandler {
 
       const llmResponses = await this.llmService.promptModels(
         message,
-        true,
+        councilMembers,
         messageHistory,
       );
 
@@ -94,7 +104,7 @@ export default class ChatHandler {
           history: prevMessages,
         },
         llmResponses,
-        true,
+        councilMembers,
       );
 
       for (const scores of llmScores) {
@@ -173,7 +183,13 @@ export default class ChatHandler {
       res.setHeader("X-Accel-Buffering", "no");
       res.flushHeaders();
 
-      const llmResponses = await this.llmService.promptModels(message, true);
+      const councilMembers =
+        await this.councilService.getUserCouncilMembers(id);
+
+      const llmResponses = await this.llmService.promptModels(
+        message,
+        councilMembers,
+      );
 
       for (const response of llmResponses) {
         if (response) {
@@ -193,7 +209,7 @@ export default class ChatHandler {
           prompt: message,
         },
         llmResponses,
-        true,
+        councilMembers,
       );
 
       for (const scores of llmScores) {

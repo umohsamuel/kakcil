@@ -3,12 +3,14 @@ import UserService from "./user";
 import AuthenticationService from "./authentication";
 import ChatService from "./chat";
 import LLMService from "@/service/llm";
+import CouncilService from "@/service/council";
 
 export default class Services {
   userService: UserService;
   authenticationService: AuthenticationService;
   llmService: LLMService;
   chatService: ChatService;
+  councilService: CouncilService;
   adapter: Adapter;
 
   constructor(adapter: Adapter) {
@@ -19,6 +21,10 @@ export default class Services {
       adapter.llmAdapter,
       adapter.chatAdapter,
       this.llmService,
+    );
+    this.councilService = new CouncilService(
+      adapter.councilAdapter,
+      adapter.modelAdapter,
     );
     this.adapter = adapter;
   }
