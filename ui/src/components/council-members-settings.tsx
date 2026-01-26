@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Card,
   CardContent,
@@ -9,13 +9,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useCouncilMembers, useUpdateCouncilMembers } from "@/hooks/use-council";
+import { useCouncilMembers, useUpdateCouncilMembers, useAvailableModels, useClearCouncilMembers } from "@/hooks/use-council";
 import {
-  getAllAvailableModels,
   MODEL_DESCRIPTIONS,
   AIProvider,
 } from "@/types/council";
-import { Users, Check, Loader2, Bot, Sparkles } from "lucide-react";
+import { Users, Check, Loader2, Bot, Sparkles, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const PROVIDER_LABELS: Record<AIProvider, string> = {
@@ -43,12 +42,31 @@ const PROVIDER_COLORS: Record<AIProvider, { bg: string; border: string; text: st
 };
 
 export function CouncilMembersSettings() {
-  const { members, isLoading } = useCouncilMembers();
+  const { members, isLoading: isMembersLoading } = useCouncilMembers();
+  const { models: availableModels, isLoading: isModelsLoading } = useAvailableModels();
   const { updateMembers, isUpdating } = useUpdateCouncilMembers();
+  const { clearMembers, isClearing } = useClearCouncilMembers();
   const [selectedModels, setSelectedModels] = useState<Set<string>>(new Set());
   const [hasChanges, setHasChanges] = useState(false);
 
-  const availableModels = getAllAvailableModels();
+  const isLoading = isMembersLoading || isModelsLoading;
+
+  // Group models by provider
+  const modelsByProvider = useMemo(() => {
+    return availableModels.reduce(
+      (acc, model) => {
+        if (!acc[model.provider]) {
+          acc[model.provider] = [];
+        }
+        acc[model.provider].push({
+          model_name: model.model_name,
+          description: model.description || MODEL_DESCRIPTIONS[model.model_name],
+        });
+        return acc;
+      },
+      {} as Record<AIProvider, { model_name: string; description?: string }[]>
+    );
+  }, [availableModels]);
 
   // Initialize selected models from current members
   useEffect(() => {
@@ -91,18 +109,6 @@ export function CouncilMembersSettings() {
     const membersArray = Array.from(selectedModels);
     updateMembers(membersArray);
   };
-
-  // Group models by provider
-  const modelsByProvider = availableModels.reduce(
-    (acc, { model, provider }) => {
-      if (!acc[provider]) {
-        acc[provider] = [];
-      }
-      acc[provider].push(model);
-      return acc;
-    },
-    {} as Record<AIProvider, string[]>
-  );
 
   if (isLoading) {
     return (
@@ -154,7 +160,7 @@ export function CouncilMembersSettings() {
         </div>
 
         {/* Models by Provider */}
-        {(Object.entries(modelsByProvider) as [AIProvider, string[]][]).map(
+        {(Object.entries(modelsByProvider) as [AIProvider, { model_name: string; description?: string }[]][]).map(
           ([provider, models]) => {
             if (models.length === 0) return null;
             const colors = PROVIDER_COLORS[provider];
@@ -169,13 +175,12 @@ export function CouncilMembersSettings() {
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2">
                   {models.map((model) => {
-                    const isSelected = selectedModels.has(model);
-                    const description = MODEL_DESCRIPTIONS[model];
+                    const isSelected = selectedModels.has(model.model_name);
 
                     return (
                       <button
-                        key={model}
-                        onClick={() => toggleModel(model)}
+                        key={model.model_name}
+                        onClick={() => toggleModel(model.model_name)}
                         disabled={isUpdating}
                         className={cn(
                           "group relative flex items-start gap-3 rounded-lg border-2 p-3 text-left transition-all duration-200",
@@ -194,25 +199,25 @@ export function CouncilMembersSettings() {
                         {/* Selection Indicator */}
                         <div
                           className={cn(
-                            "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
+                            "flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-[3px] transition-colors",
                             isSelected
                               ? "border-primary bg-primary text-primary-foreground"
                               : "border-muted-foreground/30 bg-background"
                           )}
                         >
-                          {isSelected && <Check className="h-3 w-3" />}
+                          {isSelected && <Check className="h-4 w-4 stroke-[3]" />}
                         </div>
 
                         {/* Model Info */}
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
                             <span className="truncate text-sm font-medium">
-                              {model}
+                              {model.model_name}
                             </span>
                           </div>
-                          {description && (
+                          {model.description && (
                             <p className="mt-0.5 text-xs text-muted-foreground">
-                              {description}
+                              {model.description}
                             </p>
                           )}
                         </div>
@@ -237,27 +242,49 @@ export function CouncilMembersSettings() {
           }
         )}
 
-        {/* Save Button */}
+        {/* Action Buttons */}
         <div className="flex items-center justify-between border-t border-border pt-4">
           <p className="text-sm text-muted-foreground">
             {hasChanges
               ? "You have unsaved changes"
               : "Your council is up to date"}
           </p>
-          <Button
-            onClick={handleSave}
-            disabled={isUpdating || !hasChanges}
-            className="min-w-[100px]"
-          >
-            {isUpdating ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              "Save Changes"
-            )}
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="destructive"
+              onClick={() => {
+                clearMembers();
+                setSelectedModels(new Set());
+              }}
+              disabled={isClearing || isUpdating || selectedModels.size === 0}
+            >
+              {isClearing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Clearing...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Clear All
+                </>
+              )}
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={isUpdating || isClearing || !hasChanges}
+              className="min-w-[100px]"
+            >
+              {isUpdating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Save Changes"
+              )}
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>

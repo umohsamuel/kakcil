@@ -22,31 +22,16 @@ export interface UpdateCouncilMembersResponse {
 
 export type GetCouncilMembersResponse = CouncilMember[];
 
-// Available models configuration - should match backend MODEL_CONFIGS
-export const MODEL_CONFIGS: Record<AIProvider, readonly string[]> = {
-  anthropic: [
-    // Anthropic models currently commented out in backend
-  ] as const,
-  openai: [
-    "gpt-4o",
-    "gpt-4o-mini",
-    "gpt-4-turbo",
-    "gpt-4",
-    "gpt-3.5-turbo",
-    "o1-mini",
-    "o1",
-  ] as const,
-  google: [
-    "gemini-3-pro-preview",
-    "gemini-3-flash-preview",
-    "gemini-2.5-flash",
-    "gemini-2.5-flash-lite",
-    "gemini-2.5-pro",
-    "gemini-2.0-flash",
-    "gemini-2.0-flash-lite",
-  ] as const,
-} as const;
+// Available model from API
+export interface AvailableModel {
+  model_name: string;
+  provider: AIProvider;
+  description?: string;
+}
 
+export type GetAvailableModelsResponse = AvailableModel[];
+
+// Model descriptions for display (can be overridden by API)
 export const MODEL_DESCRIPTIONS: Record<string, string> = {
   // OpenAI Models
   "gpt-4o": "Most capable multimodal GPT model",
@@ -66,16 +51,3 @@ export const MODEL_DESCRIPTIONS: Record<string, string> = {
   "gemini-2.0-flash": "Stable Gemini 2.0 Flash",
   "gemini-2.0-flash-lite": "Lightweight Gemini 2.0",
 };
-
-// Helper to get all available models as a flat array
-export function getAllAvailableModels(): Array<{ model: string; provider: AIProvider }> {
-  const models: Array<{ model: string; provider: AIProvider }> = [];
-  
-  for (const [provider, modelList] of Object.entries(MODEL_CONFIGS)) {
-    for (const model of modelList) {
-      models.push({ model, provider: provider as AIProvider });
-    }
-  }
-  
-  return models;
-}

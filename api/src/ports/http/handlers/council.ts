@@ -15,11 +15,19 @@ export default class CouncilHandler {
   }
 
   private configureRoutes() {
-    this.router.get("/", this.getAllCouncilMembers);
+    this.router.get("/", this.getAllModels);
+    this.router.get("/user", this.getUserCouncilMembers);
     this.router.post("/update", this.updateCouncilMembers);
+    this.router.delete("/clearAll", this.clearCouncil);
   }
 
-  private getAllCouncilMembers = async (req: Request, res: Response) => {
+  private getAllModels = async (req: Request, res: Response) => {
+    const members = await this.councilService.listCouncilModels();
+
+    return new SuccessResponse(res, members).send();
+  };
+
+  private getUserCouncilMembers = async (req: Request, res: Response) => {
     const { id } = req.user as { id: string };
 
     const members = await this.councilService.getUserCouncilMembers(id);
@@ -46,6 +54,16 @@ export default class CouncilHandler {
 
     return new SuccessResponse(res, {
       message: "Council members updated successfully",
+    }).send();
+  };
+
+  private clearCouncil = async (req: Request, res: Response) => {
+    const { id } = req.user as { id: string };
+
+    await this.councilService.clearCouncil(id);
+
+    return new SuccessResponse(res, {
+      message: "All council members cleared successfully",
     }).send();
   };
 }

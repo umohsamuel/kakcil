@@ -1,6 +1,10 @@
-import type { ModelName } from "@/domain/model/entity.ts";
+import type { AIProvider, ModelName } from "@/domain/model/entity.ts";
 import type CouncilRepository from "@/domain/council/repository.ts";
-import { DEFAULT_COUNCIL_MODELS } from "@/infrastructure/model";
+import {
+  DEFAULT_COUNCIL_MODELS,
+  MODEL_CONFIGS,
+  MODEL_DESCRIPTIONS,
+} from "@/infrastructure/model";
 import type {
   CouncilMember,
   CreateCouncilMemberDTO,
@@ -17,6 +21,20 @@ export default class CouncilService {
   ) {
     this.councilRepository = councilRepository;
     this.modelRepository = modelRepository;
+  }
+
+  listCouncilModels(): Array<{
+    model_name: ModelName;
+    provider: AIProvider | null;
+    description: string;
+  }> {
+    const allModels = Object.values(MODEL_CONFIGS).flat();
+
+    return allModels.map((model_name) => ({
+      model_name,
+      provider: this.modelRepository.getProviderByModelName(model_name)!,
+      description: MODEL_DESCRIPTIONS[model_name],
+    }));
   }
 
   async initializeDefaultCouncil(user_id: string): Promise<void> {
@@ -98,5 +116,9 @@ export default class CouncilService {
   async resetToDefaults(userId: string): Promise<void> {
     await this.councilRepository.deactivateAll(userId);
     await this.initializeDefaultCouncil(userId);
+  }
+
+  async clearCouncil(userId: string): Promise<void> {
+    await this.councilRepository.deactivateAll(userId);
   }
 }

@@ -2,11 +2,11 @@ import type { ModelName } from "@/domain/model/entity.ts";
 
 export const MODEL_CONFIGS = {
   anthropic: [
-    // "claude-opus-4-5-20251101",
-    // "claude-sonnet-4-5-20250929",
-    // "claude-haiku-4-5-20251001",
-    // "claude-3-5-sonnet-20241022",
-    // "claude-3-5-haiku-20241022",
+    "claude-opus-4-5-20251101",
+    "claude-sonnet-4-5-20250929",
+    "claude-haiku-4-5-20251001",
+    "claude-3-7-sonnet-20250219",
+    "claude-3-haiku-20240307",
   ] as const,
   openai: [
     "gpt-4o",
@@ -36,11 +36,11 @@ export const DEFAULT_COUNCIL_MODELS = [
 
 export const MODEL_DESCRIPTIONS: Record<ModelName, string> = {
   // Anthropic Models
-  // "claude-opus-4-5-20251101": "Most intelligent Claude model for complex tasks",
-  // "claude-sonnet-4-5-20250929": "Balanced model for everyday tasks",
-  // "claude-haiku-4-5-20251001": "Fastest Claude model for quick responses",
-  // "claude-3-5-sonnet-20241022": "Previous generation balanced model",
-  // "claude-3-5-haiku-20241022": "Previous generation fast model",
+  "claude-opus-4-5-20251101": "Most intelligent Claude model for complex tasks",
+  "claude-sonnet-4-5-20250929": "Balanced model for everyday tasks",
+  "claude-haiku-4-5-20251001": "Fastest Claude model for quick responses",
+  "claude-3-7-sonnet-20250219": "Previous generation balanced model",
+  "claude-3-haiku-20240307": "Previous generation fast model",
 
   // OpenAI Models
   "gpt-4o": "Most capable multimodal GPT model",

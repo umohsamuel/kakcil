@@ -2,7 +2,7 @@ import type {
   CouncilMember,
   CreateCouncilMemberDTO,
 } from "@/domain/council/entity.ts";
-import type { ModelName } from "@/domain/model/entity.ts";
+import type { AIProvider, ModelName } from "@/domain/model/entity.ts";
 
 export default interface CouncilRepository {
   findMembersByUserId(user_id: string): Promise<CouncilMember[]>;

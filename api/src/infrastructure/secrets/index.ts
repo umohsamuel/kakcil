@@ -9,11 +9,11 @@ export type PostgresCredentials = {
   ssl: boolean;
 };
 
-export type CloundinaryCredentials = {
-  cloudName: string;
-  apiKey: string;
-  apiSecret: string;
-};
+// export type CloundinaryCredentials = {
+//   cloudName: string;
+//   apiKey: string;
+//   apiSecret: string;
+// };
 
 export type DBConnectionCredentials = {
   PGHOST: string;
@@ -29,21 +29,6 @@ export type MailerCredentials = {
   MAILER_USER: string;
   MAILER_PASSWORD: string;
   MAILER_SERVICE: string;
-};
-
-export type GeminiCredentials = {
-  apiKey: string;
-};
-
-export type Configuration = {
-  model: string;
-  fastModel: string;
-};
-
-export type AIModelConfiguration = {
-  google: Configuration;
-  openai: Configuration;
-  anthropic: Configuration;
 };
 
 // export type AISDKProvider = "google" | "openai" | "anthropic";
@@ -63,10 +48,6 @@ export default class Secrets {
   // cloudinaryCredentials: CloundinaryCredentials;
   dbConnectionCredentials: DBConnectionCredentials;
   mailerCredentials: MailerCredentials;
-  geminiCredentials: GeminiCredentials;
-  openaiAPIKey: string;
-  // aisdkProvider: AISDKProvider;
-  aiModelConfiguration: AIModelConfiguration;
 
   constructor() {
     this.port = parseInt(process.env.SERVER_PORT || "8080");
@@ -111,50 +92,6 @@ export default class Secrets {
       PGCHANNELBINDING: this.getEnvironmentVariable("PGCHANNELBINDING"),
       PGPORT: this.getEnvironmentVariableAsNumber("PGPORT", 5432),
     };
-
-    this.geminiCredentials = {
-      apiKey: this.getEnvironmentVariable("GEMINI_API_KEY"),
-    };
-
-    this.aiModelConfiguration = {
-      google: {
-        model: this.getEnvironmentVariableOrFallback(
-          "Google_AI_MODEL",
-          "gemini-2.5-flash",
-        ),
-        fastModel: this.getEnvironmentVariableOrFallback(
-          "Google_AI_FAST_MODEL",
-          "gemini-2.5-flash",
-        ),
-      },
-      openai: {
-        model: this.getEnvironmentVariableOrFallback(
-          "OPENAI_AI_MODEL",
-          "gpt-5-nano",
-        ),
-        fastModel: this.getEnvironmentVariableOrFallback(
-          "OPENAI_AI_FAST_MODEL",
-          "gpt-5-nano",
-        ),
-      },
-      anthropic: {
-        model: this.getEnvironmentVariableOrFallback(
-          "ANTHROPIC_AI_MODEL",
-          "claude-3",
-        ),
-        fastModel: this.getEnvironmentVariableOrFallback(
-          "ANTHROPIC_AI_FAST_MODEL",
-          "claude-3",
-        ),
-      },
-    };
-
-    this.openaiAPIKey = this.getEnvironmentVariable("OPENAI_API_KEY");
-
-    // this.aisdkProvider = this.getEnvironmentVariableOrFallback(
-    //   "AI_SDK_PROVIDER",
-    //   "google",
-    // ) as AISDKProvider;
   }
 
   getEnvironmentVariable(key: string): string {

@@ -28,6 +28,7 @@ export const queryKeys = {
   council: {
     all: ["council"] as const,
     members: () => [...queryKeys.council.all, "members"] as const,
+    models: () => [...queryKeys.council.all, "models"] as const,
   },
 } as const;
 
