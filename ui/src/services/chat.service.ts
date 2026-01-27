@@ -5,6 +5,9 @@ import {
   StartChatResponse,
   GetChatsResponse,
   GetMessagesResponse,
+  BranchFromResponseRequest,
+  BranchFromResponseResponse,
+  CouncilResponseData,
 } from "@/types/chat";
 
 export class ChatService {
@@ -41,9 +44,41 @@ export class ChatService {
     return response.data;
   }
 
-  async getMessages(chatId: string): Promise<GetMessagesResponse> {
-    const response = await apiClient.get<GetMessagesResponse>(
-      `/api/v1/chats/${chatId}/messages`
+  async getMessages(
+    chatId: string,
+    limit?: number,
+    offset?: number,
+    branchId?: string
+  ): Promise<GetMessagesResponse> {
+    const params = new URLSearchParams();
+    if (limit !== undefined) params.append("limit", limit.toString());
+    if (offset !== undefined) params.append("offset", offset.toString());
+    if (branchId) params.append("branch_id", branchId);
+
+    const queryString = params.toString();
+    const url = `/api/v1/chats/${chatId}/messages${queryString ? `?${queryString}` : ""}`;
+    const response = await apiClient.get<GetMessagesResponse>(url);
+    return response.data;
+  }
+
+  // Branch from a council response
+  async branchFromResponse(
+    data: BranchFromResponseRequest
+  ): Promise<BranchFromResponseResponse> {
+    const response = await apiClient.post<BranchFromResponseResponse>(
+      "/api/v1/chats/branch",
+      data
+    );
+    return response.data;
+  }
+
+  // Get council responses for a specific user message
+  async getCouncilResponses(
+    chatId: string,
+    messageId: string
+  ): Promise<CouncilResponseData[]> {
+    const response = await apiClient.get<CouncilResponseData[]>(
+      `/api/v1/chats/${chatId}/messages/${messageId}/council-responses`
     );
     return response.data;
   }

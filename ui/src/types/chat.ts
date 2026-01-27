@@ -17,6 +17,58 @@ export interface ChatMessage {
   isDebating?: boolean;
   councilResponses?: CouncilResponse[];
   votingResults?: VotingResults;
+  // Branching support
+  parent_message_id?: string | null;
+  branch_from_response_id?: string | null;
+  branch_id?: string | null;
+  is_active_branch?: boolean;
+  // Council responses stored in backend
+  stored_council_responses?: CouncilResponseData[];
+}
+
+// Council response data from backend (stored in database)
+export interface CouncilResponseData {
+  id: string;
+  chat_id: string;
+  user_message_id: string;
+  model: string;
+  provider: string;
+  content: string;
+  is_winner: boolean;
+  votes_received?: number;
+  created_at: string;
+}
+
+// Chat branch info
+export interface ChatBranch {
+  id: string;
+  chat_id: string;
+  branch_name: string | null;
+  branched_from_message_id: string | null;
+  branched_from_response_id: string | null;
+  is_main_branch: boolean;
+  created_at: string;
+}
+
+// Paginated response wrapper
+export interface PaginatedMessagesResponse {
+  messages: ChatMessage[];
+  total: number;
+  hasMore: boolean;
+}
+
+// Branch request
+export interface BranchFromResponseRequest {
+  message: string;
+  chat_id: string;
+  response_id: string;
+}
+
+// Branch response
+export interface BranchFromResponseResponse {
+  branch: ChatBranch;
+  assistantMessage: ChatMessage;
+  userMessage: ChatMessage;
 }
 
 export interface CouncilResponse {

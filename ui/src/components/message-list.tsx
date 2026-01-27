@@ -52,7 +52,7 @@ export function MessageList({ messages, debatingMessageId }: MessageListProps) {
               <div className="bg-indigo-600 text-white rounded-lg px-4 py-3 max-w-[70%] shadow-md">
                 <p className="text-sm">{message.content}</p>
                 <p className="text-xs text-indigo-200 mt-1">
-                  {message.timestamp.toLocaleTimeString()}
+                  {message.timestamp?.toLocaleTimeString()}
                 </p>
               </div>
             ) : (
@@ -75,7 +75,7 @@ export function MessageList({ messages, debatingMessageId }: MessageListProps) {
                       {message.content}
                     </p>
                     <p className="text-xs text-gray-400 mt-2">
-                      {message.timestamp.toLocaleTimeString()}
+                      {message.timestamp?.toLocaleTimeString()}
                     </p>
                   </>
                 )}

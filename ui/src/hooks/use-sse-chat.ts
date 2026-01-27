@@ -1,17 +1,27 @@
 import { useState, useCallback, useRef } from "react";
-import { Node, Edge, applyNodeChanges, applyEdgeChanges, OnNodesChange, OnEdgesChange } from "reactflow";
+import { Node, Edge, applyNodeChanges, applyEdgeChanges, OnNodesChange, OnEdgesChange, MarkerType } from "reactflow";
 import { sseService } from "@/services/sse.service";
 import {
   ModelNode,
   LLMResponseEvent,
   LLMVoteEvent,
   VoteResponseEvent,
+  CouncilResponseData,
 } from "@/types/chat";
 
 interface RoundData {
   prompt: string;
   modelNodes: ModelNode[];
   finalResponse?: VoteResponseEvent;
+  branchId?: string; // Track which branch this round belongs to
+}
+
+interface BranchPoint {
+  nodeId: string;
+  model: string;
+  roundIndex: number;
+  branchId: string;
+  position: { x: number; y: number };
 }
 
 interface FlowConversationState {
@@ -25,6 +35,7 @@ interface FlowConversationState {
   chatId?: string;
   conversationRound: number;
   rounds: RoundData[]; // Store data for each round
+  branchPoints: BranchPoint[]; // Track all branch points
 }
 
 interface UseFlowSSEChatOptions {
@@ -41,6 +52,7 @@ export function useFlowSSEChat(initialChatId?: string, options?: UseFlowSSEChatO
     chatId: initialChatId,
     conversationRound: 0,
     rounds: [],
+    branchPoints: [],
   });
 
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -416,6 +428,7 @@ export function useFlowSSEChat(initialChatId?: string, options?: UseFlowSSEChatO
       isStreaming: false,
       conversationRound: 0,
       rounds: [],
+      branchPoints: [],
     });
   }, [cancelStream]);
 
@@ -425,6 +438,84 @@ export function useFlowSSEChat(initialChatId?: string, options?: UseFlowSSEChatO
     return match ? parseInt(match[1], 10) : 0;
   };
 
+  // Add a branch point visualization when branching from a model response
+  const addBranchPoint = useCallback(
+    (
+      sourceModelNodeId: string,
+      branchId: string,
+      model: string,
+      response: string
+    ) => {
+      setFlowState((prev) => {
+        // Find the source model node to get its position
+        const sourceNode = prev.nodes.find((n) => n.id === sourceModelNodeId);
+        if (!sourceNode) return prev;
+
+        const round = getRoundFromNodeId(sourceModelNodeId);
+        const branchCount = prev.branchPoints.length;
+        
+        // Calculate offset for new branch - alternate left/right with increasing distance
+        const direction = branchCount % 2 === 0 ? -1 : 1;
+        const offsetMultiplier = Math.floor(branchCount / 2) + 1;
+        const branchOffset = direction * 350 * offsetMultiplier;
+
+        // Create a branch node (visual indicator of the branch point)
+        const branchNodeId = `branch-${branchId}-from-${sourceModelNodeId}`;
+        const branchNodePosition = {
+          x: sourceNode.position.x + branchOffset,
+          y: sourceNode.position.y + 100,
+        };
+
+        const branchNode: Node = {
+          id: branchNodeId,
+          type: "modelResponse",
+          position: branchNodePosition,
+          data: {
+            model: model,
+            status: "winner",
+            hasResponse: true,
+            isBranchPoint: true,
+          },
+        };
+
+        // Create edge from source model to branch node with distinct styling
+        const branchEdge: Edge = {
+          id: `edge-branch-${sourceModelNodeId}-to-${branchNodeId}`,
+          source: sourceModelNodeId,
+          target: branchNodeId,
+          type: "smoothstep",
+          animated: true,
+          style: {
+            stroke: "#8b5cf6", // Purple for branches
+            strokeWidth: 2,
+            strokeDasharray: "5,5",
+          },
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            color: "#8b5cf6",
+          },
+        };
+
+        // Track the branch point
+        const newBranchPoint: BranchPoint = {
+          nodeId: branchNodeId,
+          model,
+          roundIndex: round,
+          branchId,
+          position: branchNodePosition,
+        };
+
+        return {
+          ...prev,
+          nodes: [...prev.nodes, branchNode],
+          edges: [...prev.edges, branchEdge],
+          branchPoints: [...prev.branchPoints, newBranchPoint],
+        };
+      });
+    },
+    []
+  );
+
   return {
     flowState,
     onNodesChange,
@@ -433,5 +524,6 @@ export function useFlowSSEChat(initialChatId?: string, options?: UseFlowSSEChatO
     cancelStream,
     resetConversation,
     getRoundFromNodeId,
+    addBranchPoint,
   };
 }

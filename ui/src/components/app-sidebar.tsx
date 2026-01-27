@@ -14,25 +14,36 @@ import { useAuth } from "@/hooks/use-auth";
 import { useChats } from "@/hooks/use-chats";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useParams } from "next/navigation";
+import { usePathname, useParams, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 
 export function AppSidebar() {
   const { user } = useAuthStore();
   const { logout } = useAuth();
   const pathname = usePathname();
   const params = useParams();
+  const router = useRouter();
   const currentChatId = params.id ?? ("" as string);
   const { chats, isLoading, error } = useChats();
 
   const [isOpenSidebar, setIsOpenSidebar] = useState(true);
 
-  const navItems = [{ name: "New Chat", icon: MessageSquare, href: "/chat" }];
-
   function handleIsOpenSidebar() {
     setIsOpenSidebar(!isOpenSidebar);
   }
+
+  // Handle New Chat click with proper reset when already on chat page
+  const handleNewChat = useCallback(() => {
+    if (pathname === "/chat" && !currentChatId) {
+      // Already on /chat with no chat selected, force refresh to reset state
+      router.refresh();
+      // Also navigate to force a full page remount
+      window.location.href = "/chat";
+    } else {
+      router.push("/chat");
+    }
+  }, [pathname, currentChatId, router]);
 
   return (
     <aside
@@ -68,25 +79,19 @@ export function AppSidebar() {
           <span className="text-xl font-bold tracking-wide">KAKCIL</span>
         </div>
         <div className="mt-4 flex w-full flex-1 flex-col gap-2 overflow-y-auto px-4">
-          {navItems.map((item) => {
-            const isActive = pathname === item.href && !currentChatId;
-            return (
-              <Link key={item.href} href={item.href}>
-                <Button
-                  variant="ghost"
-                  className={cn(
-                    "cursor-pointer justify-start gap-3 transition-all duration-150 ease-linear",
-                    isActive
-                      ? "bg-background text-foreground hover:bg-background/50 hover:text-background w-full shadow-lg hover:shadow-none"
-                      : "text-muted-foreground hover:bg-background/50 hover:text-foreground w-full"
-                  )}
-                >
-                  <item.icon className="h-5 w-5" />
-                  {item.name}
-                </Button>
-              </Link>
-            );
-          })}
+          <Button
+            variant="ghost"
+            onClick={handleNewChat}
+            className={cn(
+              "cursor-pointer justify-start gap-3 transition-all duration-150 ease-linear",
+              pathname === "/chat" && !currentChatId
+                ? "bg-background text-foreground hover:bg-background/50 hover:text-background w-full shadow-lg hover:shadow-none"
+                : "text-muted-foreground hover:bg-background/50 hover:text-foreground w-full"
+            )}
+          >
+            <MessageSquare className="h-5 w-5" />
+            New Chat
+          </Button>
 
           <div className="border-border my-2 border-t" />
 

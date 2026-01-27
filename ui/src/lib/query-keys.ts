@@ -20,10 +20,16 @@ export const queryKeys = {
     list: () => [...queryKeys.chat.lists()] as const,
     details: () => [...queryKeys.chat.all, "detail"] as const,
     detail: (id: string) => [...queryKeys.chat.details(), id] as const,
-    messages: (chatId?: string) =>
-      chatId
-        ? [...queryKeys.chat.all, "messages", chatId]
-        : [...queryKeys.chat.all, "messages"],
+    messages: (chatId?: string, branchId?: string) =>
+      branchId
+        ? [...queryKeys.chat.all, "messages", chatId, branchId]
+        : chatId
+          ? [...queryKeys.chat.all, "messages", chatId]
+          : [...queryKeys.chat.all, "messages"],
+    councilResponses: (chatId: string, messageId: string) =>
+      [...queryKeys.chat.all, "council-responses", chatId, messageId] as const,
+    branches: (chatId: string) =>
+      [...queryKeys.chat.all, "branches", chatId] as const,
   },
   council: {
     all: ["council"] as const,

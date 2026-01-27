@@ -22,7 +22,17 @@ export default class ChatService {
     return await this.chatRepository.getAll(user_id, filters);
   }
 
-  async getMessages(chat_id: string) {
-    return await this.chatRepository.getMessages(chat_id);
+  async getMessages(
+    chat_id: string,
+    limit: number,
+    offset: number,
+    branch_id?: string,
+  ) {
+    return await this.chatRepository.getMessages(
+      chat_id,
+      limit,
+      offset,
+      branch_id,
+    );
   }
 }

@@ -5,6 +5,8 @@ import LLMAdapter from "./llm";
 import ChatAdapter from "./chat";
 import ModelAdapter from "@/adapter/model";
 import CouncilAdapter from "@/adapter/council";
+import ChatBranchAdapter from "@/adapter/chat/branch";
+import CouncilResponseAdapter from "@/adapter/council/response";
 
 export default class Adapter {
   pgPool: Pool;
@@ -15,6 +17,8 @@ export default class Adapter {
   chatAdapter: ChatAdapter;
   modelAdapter: ModelAdapter;
   councilAdapter: CouncilAdapter;
+  chatBranchAdapter: ChatBranchAdapter;
+  councilResponseAdapter: CouncilResponseAdapter;
 
   constructor(pgPool: Pool, secrets: Secrets) {
     this.pgPool = pgPool;
@@ -24,6 +28,9 @@ export default class Adapter {
     this.chatAdapter = new ChatAdapter(this.pgPool);
     this.modelAdapter = new ModelAdapter();
     this.councilAdapter = new CouncilAdapter(this.pgPool);
+    this.chatBranchAdapter = new ChatBranchAdapter(this.pgPool);
+    this.councilResponseAdapter = new CouncilResponseAdapter(this.pgPool);
+
     this.llmAdapter = new LLMAdapter(
       this.pgPool,
       this.secrets,

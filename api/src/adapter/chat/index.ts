@@ -143,48 +143,132 @@ export default class ChatAdapter implements ChatRepository {
     await this.pgPool.query(query, [id]);
   }
 
-  async getMessages(chat_id: string): Promise<IChatMessage[]> {
+  async getMessages(
+    chat_id: string,
+    limit: number = 50,
+    offset: number = 0,
+    branch_id?: string,
+  ): Promise<IChatMessage[]> {
     if (!chat_id) {
       throw new BadRequestError("Chat ID is required for get messages");
     }
 
     const query = `
-    SELECT * FROM chat_messages WHERE chat_id = $1 ORDER BY created_at ASC;
+      SELECT
+        m.*,
+        cr.model as response_model,
+        cr.provider as response_provider,
+        cr.is_winner
+      FROM chat_messages m
+             LEFT JOIN council_responses cr ON m.branch_from_response_id = cr.id
+      WHERE m.chat_id = $1
+        AND ($2::uuid IS NULL OR m.branch_id = $2)
+        AND m.is_active_branch = TRUE
+      ORDER BY m.created_at ASC
+        LIMIT $3 OFFSET $4
     `;
 
-    const result = await this.pgPool.query(query, [chat_id]);
+    const result = await this.pgPool.query(query, [
+      chat_id,
+      branch_id,
+      limit,
+      offset,
+    ]);
 
     return result.rows as IChatMessage[];
   }
 
+  async getAllMessages(
+    chat_id: string,
+    branch_id?: string | null,
+  ): Promise<IChatMessage[]> {
+    const query = `
+    SELECT * 
+    FROM chat_messages
+    WHERE chat_id = $1
+      AND ($2::uuid IS NULL OR branch_id = $2)
+      AND is_active_branch = TRUE
+    ORDER BY created_at ASC
+  `;
+
+    const result = await this.pgPool.query<IChatMessage>(query, [
+      chat_id,
+      branch_id || null,
+    ]);
+
+    return result.rows;
+  }
+
+  async getRecentMessages(
+    chatId: string,
+    branchId: string | null,
+    limit: number = 50,
+  ): Promise<IChatMessage[]> {
+    const query = `
+    SELECT * 
+    FROM chat_messages
+    WHERE chat_id = $1
+      AND ($2::uuid IS NULL OR branch_id = $2)
+      AND is_active_branch = TRUE
+    ORDER BY created_at DESC
+    LIMIT $3
+  `;
+
+    const result = await this.pgPool.query<IChatMessage>(query, [
+      chatId,
+      branchId || null,
+      limit,
+    ]);
+
+    // Reverse to get chronological order
+    return result.rows.reverse();
+  }
+
   async addMessage(message: Omit<IChatMessage, "id">): Promise<IChatMessage> {
-    if (
-      !message.chat_id ||
-      !message.user_id ||
-      !message.role ||
-      !message.content
-    ) {
+    if (!message.chat_id || !message.role || !message.content) {
       throw new BadRequestError(
         "Chat ID, user ID, role, and content are required",
       );
     }
 
-    const fields: string[] = [];
-    const values: unknown[] = [];
+    const fields: string[] = ["chat_id", "role", "content"];
+    const values: unknown[] = [message.chat_id, message.role, message.content];
 
-    if (message.model !== undefined) {
-      fields.push(`model`);
+    if (message.user_id !== undefined && message.user_id !== null) {
+      fields.push("user_id");
+      values.push(message.user_id);
+    }
+
+    if (message.model !== undefined && message.model !== null) {
+      fields.push("model");
       values.push(message.model);
     }
 
-    fields.push("chat_id", "user_id", "role", "content");
+    if (
+      message.parent_message_id !== undefined &&
+      message.parent_message_id !== null
+    ) {
+      fields.push("parent_message_id");
+      values.push(message.parent_message_id);
+    }
 
-    values.push(
-      message.chat_id,
-      message.user_id,
-      message.role,
-      message.content,
-    );
+    if (
+      message.branch_from_response_id !== undefined &&
+      message.branch_from_response_id !== null
+    ) {
+      fields.push("branch_from_response_id");
+      values.push(message.branch_from_response_id);
+    }
+
+    if (message.branch_id !== undefined && message.branch_id !== null) {
+      fields.push("branch_id");
+      values.push(message.branch_id);
+    }
+
+    if (message.is_active_branch !== undefined) {
+      fields.push("is_active_branch");
+      values.push(message.is_active_branch);
+    }
 
     const query = `
     INSERT INTO chat_messages 

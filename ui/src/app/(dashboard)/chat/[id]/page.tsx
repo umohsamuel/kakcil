@@ -1,16 +1,16 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { ProtectedRoute } from "@/components/protected-route";
 import { useAuth } from "@/hooks/use-auth";
-import { useMessages } from "@/hooks/use-chat";
+import { useMessages, useBranchFromResponse } from "@/hooks/use-chat";
 import { useFlowSSEChat } from "@/hooks/use-sse-chat";
 import { useParams } from "next/navigation";
 import { FlowCanvas } from "@/components/flow-canvas";
 import { MarkdownMessage } from "@/components/markdown-message";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { LogOut, Send, Copy, Check, X, Loader2 } from "lucide-react";
+import { LogOut, Send, Copy, Check, X, Loader2, GitBranch } from "lucide-react";
 import Image from "next/image";
 import { toast } from "sonner";
 import { Node } from "reactflow";
@@ -19,26 +19,67 @@ function ChatDetailPageContent() {
   const { user, logout } = useAuth();
   const params = useParams();
   const chatId = params.id as string;
-  const { messages, isLoading: isLoadingMessages, refetch } = useMessages(chatId);
+  const { 
+    messages, 
+    isLoading: isLoadingMessages, 
+    isFetchingMore,
+    hasMore,
+    refetch,
+    fetchMore,
+  } = useMessages(chatId);
   const {
     flowState,
     onNodesChange,
     onEdgesChange,
     startStreaming,
     getRoundFromNodeId,
+    addBranchPoint,
   } = useFlowSSEChat(chatId);
+  const { branchFromResponseAsync, isBranching } = useBranchFromResponse(chatId);
   const [input, setInput] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const previousScrollHeight = useRef<number>(0);
 
+  // Infinite scroll - fetch more when scrolling to top
   useEffect(() => {
-    if (scrollRef.current) {
+    const scrollElement = scrollRef.current;
+    if (!scrollElement) return;
+
+    const handleScroll = () => {
+      // When near top (within 100px), fetch more
+      if (scrollElement.scrollTop < 100 && hasMore && !isFetchingMore) {
+        previousScrollHeight.current = scrollElement.scrollHeight;
+        fetchMore();
+      }
+    };
+
+    scrollElement.addEventListener("scroll", handleScroll);
+    return () => scrollElement.removeEventListener("scroll", handleScroll);
+  }, [hasMore, isFetchingMore, fetchMore]);
+
+  // Maintain scroll position after loading more messages
+  useEffect(() => {
+    const scrollElement = scrollRef.current;
+    if (scrollElement && previousScrollHeight.current > 0 && !isFetchingMore) {
+      const newScrollHeight = scrollElement.scrollHeight;
+      const scrollDiff = newScrollHeight - previousScrollHeight.current;
+      if (scrollDiff > 0) {
+        scrollElement.scrollTop = scrollDiff;
+      }
+      previousScrollHeight.current = 0;
+    }
+  }, [messages, isFetchingMore]);
+
+  // Scroll to bottom on initial load
+  useEffect(() => {
+    if (scrollRef.current && !previousScrollHeight.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages.length === 0 ? messages.length : 0]); // Only on initial load
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -95,6 +136,34 @@ function ChatDetailPageContent() {
     if (node.type === "modelResponse" || node.type === "finalAnswer" || node.type === "userPrompt") {
       setSelectedNodeId(node.id);
       setSidebarOpen(true);
+    }
+  };
+
+  // Handle branching from a model response
+  const handleBranchFrom = async (model: string, response: string) => {
+    if (!selectedNodeId || !selectedModelNode || isBranching) return;
+
+    try {
+      // For now, we'll prompt the user to enter a message to continue the branch
+      // The branch is created immediately, showing it on the canvas
+      const branchResult = await branchFromResponseAsync({
+        message: "Continue from this response", // Default message, user can change
+        chat_id: chatId,
+        response_id: selectedModelNode.model, // This should be the actual response ID from backend
+      });
+
+      // Add branch point to the canvas visualization
+      if (branchResult && branchResult.branch) {
+        addBranchPoint(
+          selectedNodeId,
+          branchResult.branch.id,
+          model,
+          response
+        );
+        toast.success(`Branch created from ${model} response`);
+      }
+    } catch (error) {
+      toast.error("Failed to create branch");
     }
   };
 
@@ -267,24 +336,47 @@ function ChatDetailPageContent() {
                             <MarkdownMessage content={sidebarContent.response} />
                           </div>
                           {!flowState.isStreaming && (
-                            <Button
-                              onClick={() => handleCopy(sidebarContent.response!, "sidebar")}
-                              variant="outline"
-                              size="sm"
-                              className="mt-2"
-                            >
-                              {copiedId === "sidebar" ? (
-                                <>
-                                  <Check className="mr-2 h-4 w-4 text-green-600" />
-                                  Copied
-                                </>
-                              ) : (
-                                <>
-                                  <Copy className="mr-2 h-4 w-4" />
-                                  Copy Response
-                                </>
+                            <div className="mt-2 flex items-center gap-2">
+                              <Button
+                                onClick={() => handleCopy(sidebarContent.response!, "sidebar")}
+                                variant="outline"
+                                size="sm"
+                              >
+                                {copiedId === "sidebar" ? (
+                                  <>
+                                    <Check className="mr-2 h-4 w-4 text-green-600" />
+                                    Copied
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy className="mr-2 h-4 w-4" />
+                                    Copy Response
+                                  </>
+                                )}
+                              </Button>
+                              {/* Branch button - only show for model responses, not final answers */}
+                              {selectedModel && selectedModelNode && !isFinalAnswerSelected && (
+                                <Button
+                                  onClick={() => handleBranchFrom(selectedModel, sidebarContent.response!)}
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={isBranching}
+                                  className="border-purple-300 text-purple-700 hover:bg-purple-50 hover:text-purple-800 dark:border-purple-600 dark:text-purple-400 dark:hover:bg-purple-950"
+                                >
+                                  {isBranching ? (
+                                    <>
+                                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                      Branching...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <GitBranch className="mr-2 h-4 w-4" />
+                                      Branch From Here
+                                    </>
+                                  )}
+                                </Button>
                               )}
-                            </Button>
+                            </div>
                           )}
                         </div>
                       )}

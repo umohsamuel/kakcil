@@ -12,5 +12,9 @@ export interface IChatMessage {
   user_id: string;
   role: "system" | "user" | "assistant" | "tool";
   content: string;
-  model?: string;
+  model: string | null;
+  parent_message_id: string | null;
+  branch_from_response_id: string | null;
+  branch_id: string | null;
+  is_active_branch: boolean;
 }

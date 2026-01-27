@@ -1,20 +1,53 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
 import { chatService } from "@/services/chat.service";
 import { queryKeys } from "@/lib/query-keys";
-import { SendMessageRequest } from "@/types/chat";
+import { SendMessageRequest, ChatMessage, BranchFromResponseRequest } from "@/types/chat";
+import { useMemo, useCallback } from "react";
 
-export function useMessages(chatId?: string) {
-  const query = useQuery({
-    queryKey: queryKeys.chat.messages(chatId),
-    queryFn: () => chatService.getMessages(chatId!),
+const PAGE_SIZE = 20;
+
+export function useMessages(chatId?: string, branchId?: string) {
+  const query = useInfiniteQuery({
+    queryKey: queryKeys.chat.messages(chatId, branchId),
+    queryFn: ({ pageParam = 0 }) => 
+      chatService.getMessages(chatId!, PAGE_SIZE, pageParam * PAGE_SIZE, branchId),
     enabled: !!chatId,
+    getNextPageParam: (lastPage, allPages) => {
+      // If we got fewer messages than PAGE_SIZE, there are no more pages
+      if (lastPage.length < PAGE_SIZE) return undefined;
+      return allPages.length;
+    },
+    initialPageParam: 0,
   });
 
+  // Flatten and deduplicate messages from all pages
+  const messages = useMemo(() => {
+    if (!query.data?.pages) return [];
+    const allMessages = query.data.pages.flat();
+    // Deduplicate by id
+    const seen = new Set<string>();
+    return allMessages.filter((msg) => {
+      if (seen.has(msg.id)) return false;
+      seen.add(msg.id);
+      return true;
+    });
+  }, [query.data?.pages]);
+
+  const fetchMore = useCallback(() => {
+    if (query.hasNextPage && !query.isFetchingNextPage) {
+      return query.fetchNextPage();
+    }
+    return Promise.resolve();
+  }, [query]);
+
   return {
-    messages: query.data ?? [],
+    messages,
     isLoading: query.isLoading,
+    isFetchingMore: query.isFetchingNextPage,
+    hasMore: query.hasNextPage ?? false,
     error: query.error,
     refetch: query.refetch,
+    fetchMore,
   };
 }
 
@@ -59,3 +92,43 @@ export function useStartChat() {
   };
 }
 
+// Hook for branching from a council response
+export function useBranchFromResponse(chatId: string) {
+  const queryClient = useQueryClient();
+
+  const branchMutation = useMutation({
+    mutationFn: (data: BranchFromResponseRequest) => 
+      chatService.branchFromResponse(data),
+    onSuccess: () => {
+      // Invalidate chat list to show new branch
+      queryClient.invalidateQueries({ queryKey: queryKeys.chat.list() });
+      if (chatId) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.chat.branches(chatId) });
+      }
+    },
+  });
+
+  return {
+    branchFromResponse: branchMutation.mutate,
+    branchFromResponseAsync: branchMutation.mutateAsync,
+    isBranching: branchMutation.isPending,
+    error: branchMutation.error,
+    branchData: branchMutation.data,
+  };
+}
+
+// Hook for fetching council responses for a message
+export function useCouncilResponses(chatId: string, messageId?: string) {
+  const query = useQuery({
+    queryKey: queryKeys.chat.councilResponses(chatId, messageId || ""),
+    queryFn: () => chatService.getCouncilResponses(chatId, messageId!),
+    enabled: !!chatId && !!messageId,
+  });
+
+  return {
+    councilResponses: query.data ?? [],
+    isLoading: query.isLoading,
+    error: query.error,
+    refetch: query.refetch,
+  };
+}

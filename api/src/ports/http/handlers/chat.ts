@@ -1,27 +1,21 @@
 import { SuccessResponse } from "@/infrastructure/responses/success";
-import type ChatService from "@/service/chat";
 import { type Request, type Response, Router } from "express";
 import { BadRequestError } from "@/infrastructure/errors/badRequest.ts";
 import type { ModelMessage } from "ai";
-import type LLMService from "@/service/llm";
 import { calculateVote } from "@/infrastructure/utils/vote.ts";
 import { getPaginationParams } from "@/infrastructure/utils/pagination.ts";
-import type CouncilService from "@/service/council";
+import type Adapter from "@/adapter";
+import type Services from "@/service";
 
 export default class ChatHandler {
-  chatService: ChatService;
-  llmService: LLMService;
-  councilService: CouncilService;
+  adapter: Adapter;
+  services: Services;
+
   router = Router();
 
-  constructor(
-    chatService: ChatService,
-    llmService: LLMService,
-    councilService: CouncilService,
-  ) {
-    this.llmService = llmService;
-    this.chatService = chatService;
-    this.councilService = councilService;
+  constructor(adapter: Adapter, services: Services) {
+    this.adapter = adapter;
+    this.services = services;
 
     this.configureRoutes();
   }
@@ -29,6 +23,7 @@ export default class ChatHandler {
   private configureRoutes() {
     this.router.post("/new", this.startNewChat);
     this.router.post("/", this.sendMessageToChat);
+    this.router.post("/branch", this.branchFromChat);
 
     // this.router.post("/stream", this.streamMessage);
     this.router.get("/", this.getChats);
@@ -41,21 +36,31 @@ export default class ChatHandler {
 
     const filters = getPaginationParams(page, limit);
 
-    const chats = await this.chatService.getChats(id, filters);
+    const chats = await this.services.chatService.getChats(id, filters);
 
     return new SuccessResponse(res, chats.data, chats.meta).send();
   };
 
   private getMessages = async (req: Request, res: Response) => {
-    const { id } = req.params as { id: string };
+    const { id, limit, offset, branch_id } = req.params as {
+      id: string;
+      limit?: string;
+      offset?: string;
+      branch_id?: string;
+    };
 
-    const messages = await this.chatService.getMessages(id);
+    const messages = await this.services.chatService.getMessages(
+      id,
+      Number(limit),
+      Number(offset),
+      branch_id,
+    );
 
     return new SuccessResponse(res, messages).send();
   };
 
   private sendMessageToChat = async (req: Request, res: Response) => {
-    const { message, chat_id } = req.body;
+    const { message, chat_id, branch_id } = req.body;
     const { id } = req.user as { id: string };
 
     if (!chat_id) {
@@ -70,16 +75,21 @@ export default class ChatHandler {
       res.flushHeaders();
 
       const councilMembers =
-        await this.councilService.getUserCouncilMembers(id);
+        await this.services.councilService.getUserCouncilMembers(id);
 
-      const prevMessages = await this.chatService.getMessages(chat_id);
+      const prevMessages =
+        await this.services.chatService.chatRepository.getRecentMessages(
+          chat_id,
+          branch_id,
+          10,
+        );
 
       const messageHistory = prevMessages?.map((m) => ({
         role: m.role,
         content: m.content,
       })) as ModelMessage[] | undefined;
 
-      const llmResponses = await this.llmService.promptModels(
+      const llmResponses = await this.services.llmService.promptModels(
         message,
         councilMembers,
         messageHistory,
@@ -98,7 +108,7 @@ export default class ChatHandler {
         }
       }
 
-      const llmScores = await this.llmService.llmRepository.vote(
+      const llmScores = await this.services.llmService.llmRepository.vote(
         {
           prompt: message,
           history: prevMessages,
@@ -142,19 +152,39 @@ export default class ChatHandler {
         })}\n\n`,
       );
 
-      await this.chatService.chatRepository.addMessage({
-        chat_id,
-        user_id: id,
-        role: "user",
-        content: message,
-      });
+      const lastMessage = prevMessages?.[prevMessages.length - 1];
 
-      await this.chatService.chatRepository.addMessage({
+      const userMessage =
+        await this.services.chatService.chatRepository.addMessage({
+          chat_id,
+          user_id: id,
+          role: "user",
+          content: message,
+          model: null,
+          parent_message_id: lastMessage?.id || null,
+          branch_from_response_id: null,
+          branch_id: branch_id || null,
+          is_active_branch: true,
+        });
+
+      const userMessageId = userMessage.id;
+      await this.services.councilResponseService.saveResponses(
+        chat_id,
+        userMessageId,
+        llmResponses,
+        voteResult.model,
+      );
+
+      await this.services.chatService.chatRepository.addMessage({
         chat_id,
         user_id: id,
         role: "assistant",
         content: voteResult.response,
         model: voteResult.model,
+        parent_message_id: userMessageId,
+        branch_from_response_id: null,
+        branch_id: branch_id || null,
+        is_active_branch: true,
       });
 
       console.log("Client closed connection");
@@ -184,9 +214,9 @@ export default class ChatHandler {
       res.flushHeaders();
 
       const councilMembers =
-        await this.councilService.getUserCouncilMembers(id);
+        await this.services.councilService.getUserCouncilMembers(id);
 
-      const llmResponses = await this.llmService.promptModels(
+      const llmResponses = await this.services.llmService.promptModels(
         message,
         councilMembers,
       );
@@ -204,7 +234,7 @@ export default class ChatHandler {
         }
       }
 
-      const llmScores = await this.llmService.llmRepository.vote(
+      const llmScores = await this.services.llmService.llmRepository.vote(
         {
           prompt: message,
         },
@@ -248,7 +278,7 @@ export default class ChatHandler {
       );
 
       if (voteResult && voteResult.prompt) {
-        const chat = await this.chatService.chatRepository.add({
+        const chat = await this.services.chatService.chatRepository.add({
           model: voteResult.model,
           user_id: id,
           title: voteResult.topic as string,
@@ -261,19 +291,37 @@ export default class ChatHandler {
           })}\n\n`,
         );
 
-        await this.chatService.chatRepository.addMessage({
-          chat_id: chat.id,
-          user_id: id,
-          role: "user",
-          content: message,
-        });
+        const userMessage =
+          await this.services.chatService.chatRepository.addMessage({
+            chat_id: chat.id,
+            user_id: id,
+            role: "user",
+            content: message,
+            model: null,
+            parent_message_id: null,
+            branch_from_response_id: null,
+            branch_id: null,
+            is_active_branch: true,
+          });
 
-        await this.chatService.chatRepository.addMessage({
+        const userMessageId = userMessage.id;
+        await this.services.councilResponseService.saveResponses(
+          chat.id,
+          userMessageId,
+          llmResponses,
+          voteResult.model,
+        );
+
+        await this.services.chatService.chatRepository.addMessage({
           chat_id: chat.id,
           user_id: id,
           role: "assistant",
           content: voteResult.response,
           model: voteResult.model,
+          parent_message_id: userMessageId,
+          branch_from_response_id: null,
+          branch_id: null,
+          is_active_branch: true,
         });
       }
 
@@ -291,4 +339,51 @@ export default class ChatHandler {
       return;
     }
   };
+
+  async branchFromChat(req: Request, res: Response) {
+    const { message, chat_id, user_id, response_id } = req.body;
+
+    const branchResponse =
+      await this.adapter.councilResponseAdapter.findById(response_id);
+
+    if (!branchResponse) {
+      throw new Error("Council response not found");
+    }
+
+    const branch = await this.adapter.chatBranchAdapter.createChatBranch({
+      chat_id: chat_id,
+      branch_name: `${branchResponse.model} Branch`,
+      branched_from_message_id: branchResponse.user_message_id,
+      branched_from_response_id: response_id,
+      is_main_branch: false,
+    });
+
+    const assistantMessage =
+      await this.services.chatService.chatRepository.addMessage({
+        chat_id: chat_id,
+        user_id: user_id,
+        role: "assistant",
+        content: branchResponse.content,
+        model: branchResponse.model,
+        parent_message_id: branchResponse.user_message_id,
+        branch_from_response_id: response_id,
+        branch_id: branch.id,
+        is_active_branch: true,
+      });
+
+    const userMessage =
+      await this.services.chatService.chatRepository.addMessage({
+        chat_id: chat_id,
+        user_id: user_id,
+        role: "user",
+        content: message,
+        model: null,
+        parent_message_id: assistantMessage.id,
+        branch_from_response_id: null,
+        branch_id: branch.id,
+        is_active_branch: true,
+      });
+
+    return { branch, assistantMessage, userMessage };
+  }
 }
