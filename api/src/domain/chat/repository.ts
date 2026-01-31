@@ -19,10 +19,17 @@ export default interface ChatRepository {
 
   getMessages: (
     chat_id: string,
-    limit: number,
-    offset: number,
+    limit?: number,
+    offset?: number,
     branch_id?: string,
-  ) => Promise<IChatMessage[]>;
+  ) => Promise<
+    (IChatMessage & {
+      branch_id: string | null;
+      response_model: string | null;
+      response_provider: string | null;
+      is_winner: boolean | null;
+    })[]
+  >;
 
   addMessage: (message: Omit<IChatMessage, "id">) => Promise<IChatMessage>;
 

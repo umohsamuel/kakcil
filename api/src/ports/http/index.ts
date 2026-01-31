@@ -42,8 +42,6 @@ export default class ExpressHTTP {
     this.server.use(morganMiddleware.middleware);
     this.server.use(passport.initialize() as express.RequestHandler);
 
-    this.testPoolConnection();
-
     this.health();
     this.authentication();
 
@@ -52,6 +50,8 @@ export default class ExpressHTTP {
     this.user();
     this.chat();
     this.council();
+
+    this.testPoolConnection();
 
     this.server.use(Route404);
     this.server.use(ErrorHandlerMiddleware);

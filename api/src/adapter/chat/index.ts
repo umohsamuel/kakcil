@@ -148,7 +148,14 @@ export default class ChatAdapter implements ChatRepository {
     limit: number = 50,
     offset: number = 0,
     branch_id?: string,
-  ): Promise<IChatMessage[]> {
+  ): Promise<
+    (IChatMessage & {
+      branch_id: string | null;
+      response_model: string | null;
+      response_provider: string | null;
+      is_winner: boolean | null;
+    })[]
+  > {
     if (!chat_id) {
       throw new BadRequestError("Chat ID is required for get messages");
     }
@@ -175,7 +182,14 @@ export default class ChatAdapter implements ChatRepository {
       offset,
     ]);
 
-    return result.rows as IChatMessage[];
+    console.log("result.rows:", result.rows[0]);
+
+    return result.rows as (IChatMessage & {
+      branch_id: string | null;
+      response_model: string | null;
+      response_provider: string | null;
+      is_winner: boolean | null;
+    })[];
   }
 
   async getAllMessages(

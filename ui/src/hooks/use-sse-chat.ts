@@ -22,6 +22,8 @@ interface BranchPoint {
   roundIndex: number;
   branchId: string;
   position: { x: number; y: number };
+  parentPrompt?: string;
+  parentResponse?: string;
 }
 
 interface FlowConversationState {
@@ -444,7 +446,8 @@ export function useFlowSSEChat(initialChatId?: string, options?: UseFlowSSEChatO
       sourceModelNodeId: string,
       branchId: string,
       model: string,
-      response: string
+      response: string,
+      parentPrompt?: string
     ) => {
       setFlowState((prev) => {
         // Find the source model node to get its position
@@ -452,18 +455,13 @@ export function useFlowSSEChat(initialChatId?: string, options?: UseFlowSSEChatO
         if (!sourceNode) return prev;
 
         const round = getRoundFromNodeId(sourceModelNodeId);
-        const branchCount = prev.branchPoints.length;
         
-        // Calculate offset for new branch - alternate left/right with increasing distance
-        const direction = branchCount % 2 === 0 ? -1 : 1;
-        const offsetMultiplier = Math.floor(branchCount / 2) + 1;
-        const branchOffset = direction * 350 * offsetMultiplier;
-
-        // Create a branch node (visual indicator of the branch point)
+        // Position branch directly under the source node (not offset to side)
+        // Small horizontal offset only to avoid exact overlap
         const branchNodeId = `branch-${branchId}-from-${sourceModelNodeId}`;
         const branchNodePosition = {
-          x: sourceNode.position.x + branchOffset,
-          y: sourceNode.position.y + 100,
+          x: sourceNode.position.x,
+          y: sourceNode.position.y + 120, // Directly below with arrow connecting
         };
 
         const branchNode: Node = {
@@ -475,34 +473,39 @@ export function useFlowSSEChat(initialChatId?: string, options?: UseFlowSSEChatO
             status: "winner",
             hasResponse: true,
             isBranchPoint: true,
+            parentPrompt: parentPrompt, // Store parent context for sidebar display
+            parentResponse: response,
           },
         };
 
-        // Create edge from source model to branch node with distinct styling
+        // Create edge from source model to branch node with visible arrow
         const branchEdge: Edge = {
           id: `edge-branch-${sourceModelNodeId}-to-${branchNodeId}`,
           source: sourceModelNodeId,
           target: branchNodeId,
           type: "smoothstep",
-          animated: true,
+          animated: false, // Solid line, not animated
           style: {
             stroke: "#8b5cf6", // Purple for branches
-            strokeWidth: 2,
-            strokeDasharray: "5,5",
+            strokeWidth: 3,
           },
           markerEnd: {
             type: MarkerType.ArrowClosed,
             color: "#8b5cf6",
+            width: 20,
+            height: 20,
           },
         };
 
-        // Track the branch point
+        // Track the branch point with parent context
         const newBranchPoint: BranchPoint = {
           nodeId: branchNodeId,
           model,
           roundIndex: round,
           branchId,
           position: branchNodePosition,
+          parentPrompt,
+          parentResponse: response,
         };
 
         return {
@@ -516,6 +519,199 @@ export function useFlowSSEChat(initialChatId?: string, options?: UseFlowSSEChatO
     []
   );
 
+  // Build flow nodes/edges from historical messages with council responses
+  const buildFlowFromMessages = useCallback(
+    (messages: { 
+      id: string; 
+      role: string; 
+      content: string; 
+      stored_council_responses?: Array<{
+        id: string;
+        model: string;
+        content: string;
+        is_winner: boolean;
+        votes_received?: number;
+      }>;
+    }[]) => {
+      const nodes: Node[] = [];
+      const edges: Edge[] = [];
+      const rounds: RoundData[] = [];
+      let roundIndex = 0;
+
+      // Group messages into user-assistant pairs
+      for (let i = 0; i < messages.length; i++) {
+        const message = messages[i];
+        
+        if (message.role === "user") {
+          const baseY = roundIndex * 500;
+          const promptNodeId = `prompt-r${roundIndex}`;
+          
+          // Create user prompt node
+          nodes.push({
+            id: promptNodeId,
+            type: "userPrompt",
+            position: { x: 0, y: baseY + 50 },
+            data: { message: message.content },
+          });
+
+          // Connect from previous final answer if exists
+          if (roundIndex > 0) {
+            const prevFinalId = `final-r${roundIndex - 1}`;
+            edges.push({
+              id: `edge-${prevFinalId}-to-${promptNodeId}`,
+              source: prevFinalId,
+              target: promptNodeId,
+              type: "smoothstep",
+              animated: false,
+              style: { stroke: "#6366f1", strokeWidth: 2 },
+            });
+          }
+
+          // Find the next assistant message
+          const assistantMsg = messages[i + 1];
+          if (assistantMsg?.role === "assistant") {
+            const councilResponses = message.stored_council_responses || [];
+            const modelNodes: ModelNode[] = [];
+            
+            if (councilResponses.length > 0) {
+              // Create model response nodes from council responses
+              const spacing = 300;
+              const startX = councilResponses.length > 1 
+                ? -((councilResponses.length - 1) * spacing) / 2 
+                : 0;
+
+              councilResponses.forEach((council, idx) => {
+                const nodeId = `model-${council.model}-r${roundIndex}`;
+                const isWinner = council.is_winner;
+                
+                modelNodes.push({
+                  model: council.model,
+                  status: isWinner ? "winner" : "completed",
+                  response: council.content,
+                  votes: council.votes_received,
+                });
+
+                nodes.push({
+                  id: nodeId,
+                  type: "modelResponse",
+                  position: { x: startX + idx * spacing, y: baseY + 200 },
+                  data: {
+                    model: council.model,
+                    status: isWinner ? "winner" : "completed",
+                    hasResponse: true,
+                    votes: council.votes_received,
+                  },
+                });
+
+                // Edge from prompt to model
+                edges.push({
+                  id: `edge-${promptNodeId}-to-${nodeId}`,
+                  source: promptNodeId,
+                  target: nodeId,
+                  type: "smoothstep",
+                  animated: false,
+                });
+              });
+
+              // Create final answer node
+              const winningModel = councilResponses.find(c => c.is_winner)?.model || councilResponses[0]?.model;
+              const finalNodeId = `final-r${roundIndex}`;
+              
+              nodes.push({
+                id: finalNodeId,
+                type: "finalAnswer",
+                position: { x: 0, y: baseY + 350 },
+                data: {
+                  model: winningModel,
+                  topic: "",
+                },
+              });
+
+              // Edges from models to final
+              councilResponses.forEach((council) => {
+                edges.push({
+                  id: `edge-model-${council.model}-r${roundIndex}-to-${finalNodeId}`,
+                  source: `model-${council.model}-r${roundIndex}`,
+                  target: finalNodeId,
+                  type: "smoothstep",
+                  animated: false,
+                  style: {
+                    stroke: council.is_winner ? "#eab308" : "#94a3b8",
+                    strokeWidth: council.is_winner ? 3 : 2,
+                  },
+                });
+              });
+
+              // Store round data
+              rounds.push({
+                prompt: message.content,
+                modelNodes,
+                finalResponse: {
+                  prompt: message.content,
+                  model: winningModel || "",
+                  topic: "",
+                  response: assistantMsg.content,
+                },
+              });
+            } else {
+              // No council responses - create simple flow
+              rounds.push({
+                prompt: message.content,
+                modelNodes: [],
+                finalResponse: {
+                  prompt: message.content,
+                  model: "assistant",
+                  topic: "",
+                  response: assistantMsg.content,
+                },
+              });
+            }
+
+            roundIndex++;
+            i++; // Skip the assistant message as we've processed it
+          }
+        }
+      }
+
+      return { nodes, edges, rounds };
+    },
+    []
+  );
+
+  // Initialize flow state from historical messages
+  const initializeFromMessages = useCallback(
+    (messages: { 
+      id: string; 
+      role: string; 
+      content: string; 
+      stored_council_responses?: Array<{
+        id: string;
+        model: string;
+        content: string;
+        is_winner: boolean;
+        votes_received?: number;
+      }>;
+    }[], chatId: string) => {
+      const { nodes, edges, rounds } = buildFlowFromMessages(messages);
+      
+      if (nodes.length > 0) {
+        setFlowState({
+          nodes,
+          edges,
+          modelNodes: rounds[rounds.length - 1]?.modelNodes || [],
+          userMessage: rounds[rounds.length - 1]?.prompt || "",
+          finalResponse: rounds[rounds.length - 1]?.finalResponse,
+          isStreaming: false,
+          chatId,
+          conversationRound: rounds.length - 1,
+          rounds,
+          branchPoints: [],
+        });
+      }
+    },
+    [buildFlowFromMessages]
+  );
+
   return {
     flowState,
     onNodesChange,
@@ -525,5 +721,7 @@ export function useFlowSSEChat(initialChatId?: string, options?: UseFlowSSEChatO
     resetConversation,
     getRoundFromNodeId,
     addBranchPoint,
+    buildFlowFromMessages,
+    initializeFromMessages,
   };
 }

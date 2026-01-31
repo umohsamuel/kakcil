@@ -24,8 +24,8 @@ export default class ChatService {
 
   async getMessages(
     chat_id: string,
-    limit: number,
-    offset: number,
+    limit?: number,
+    offset?: number,
     branch_id?: string,
   ) {
     return await this.chatRepository.getMessages(

@@ -51,8 +51,8 @@ export default class ChatHandler {
 
     const messages = await this.services.chatService.getMessages(
       id,
-      Number(limit),
-      Number(offset),
+      limit ? Number(limit) : undefined,
+      offset ? Number(offset) : undefined,
       branch_id,
     );
 

@@ -34,6 +34,7 @@ function ChatDetailPageContent() {
     startStreaming,
     getRoundFromNodeId,
     addBranchPoint,
+    initializeFromMessages,
   } = useFlowSSEChat(chatId);
   const { branchFromResponseAsync, isBranching } = useBranchFromResponse(chatId);
   const [input, setInput] = useState("");
@@ -104,6 +105,25 @@ function ChatDetailPageContent() {
     }
   }, [flowState.isStreaming]);
 
+  // Initialize canvas from historical messages with council responses
+  useEffect(() => {
+    // Only initialize if we have messages with council responses and flow is empty
+    if (
+      !isLoadingMessages &&
+      messages.length > 0 &&
+      flowState.nodes.length === 0 &&
+      !flowState.isStreaming
+    ) {
+      // Check if any message has council responses
+      const hasCouncilData = messages.some(
+        (msg) => msg.stored_council_responses && msg.stored_council_responses.length > 0
+      );
+      if (hasCouncilData) {
+        initializeFromMessages(messages, chatId);
+      }
+    }
+  }, [messages, isLoadingMessages, flowState.nodes.length, flowState.isStreaming, initializeFromMessages, chatId]);
+
   const handleSendMessage = async () => {
     if (!input.trim() || flowState.isStreaming) return;
 
@@ -143,6 +163,10 @@ function ChatDetailPageContent() {
   const handleBranchFrom = async (model: string, response: string) => {
     if (!selectedNodeId || !selectedModelNode || isBranching) return;
 
+    // Get the parent prompt for this branch
+    const selectedContext = getSelectedContext();
+    const parentPrompt = selectedContext?.prompt || flowState.userMessage;
+
     try {
       // For now, we'll prompt the user to enter a message to continue the branch
       // The branch is created immediately, showing it on the canvas
@@ -158,7 +182,8 @@ function ChatDetailPageContent() {
           selectedNodeId,
           branchResult.branch.id,
           model,
-          response
+          response,
+          parentPrompt
         );
         toast.success(`Branch created from ${model} response`);
       }
@@ -207,6 +232,25 @@ function ChatDetailPageContent() {
   // Get display content for sidebar
   const getSidebarContent = () => {
     if (!selectedContext) return null;
+
+    // Check if selected node is a branch point
+    const isBranchNode = selectedNodeId?.startsWith("branch-");
+    if (isBranchNode) {
+      // Find the branch point to get parent context
+      const branchPoint = flowState.branchPoints.find(
+        (bp) => bp.nodeId === selectedNodeId
+      );
+      if (branchPoint) {
+        return {
+          title: branchPoint.model,
+          isWinner: true,
+          isBranch: true,
+          prompt: selectedContext.prompt,
+          response: branchPoint.parentResponse,
+          parentMessage: branchPoint.parentPrompt, // Original question that led to this branch
+        };
+      }
+    }
 
     if (selectedModel && selectedModelNode) {
       return {
@@ -315,6 +359,24 @@ function ChatDetailPageContent() {
                       {selectedContext && selectedContext.round > 0 && (
                         <div className="text-xs text-gray-500 dark:text-gray-400">
                           Round {selectedContext.round + 1}
+                        </div>
+                      )}
+
+                      {/* Parent Message - shown for branched nodes */}
+                      {sidebarContent?.parentMessage && (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-semibold uppercase tracking-wide text-purple-600 dark:text-purple-400">
+                              Original Question (Branched From)
+                            </span>
+                          </div>
+                          <div className="flex items-start justify-end gap-3">
+                            <div className="max-w-[85%] rounded-2xl rounded-tr-sm border-2 border-purple-300 bg-purple-50 px-6 py-4 dark:border-purple-700 dark:bg-purple-950/40">
+                              <div className="whitespace-pre-wrap text-sm leading-relaxed text-purple-900 dark:text-purple-100">
+                                {sidebarContent.parentMessage}
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       )}
 
