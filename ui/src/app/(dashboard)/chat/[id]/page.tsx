@@ -2,14 +2,28 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { ProtectedRoute } from "@/components/protected-route";
 import { useAuth } from "@/hooks/use-auth";
-import { useMessages, useBranchFromResponse, useBranchInfo } from "@/hooks/use-chat";
+import {
+  useMessages,
+  useBranchFromResponse,
+  useBranchInfo,
+} from "@/hooks/use-chat";
 import { useFlowSSEChat } from "@/hooks/use-sse-chat";
 import { useParams, useSearchParams } from "next/navigation";
 import { FlowCanvas } from "@/components/flow-canvas";
 import { MarkdownMessage } from "@/components/markdown-message";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { LogOut, Send, Copy, Check, X, Loader2, GitBranch, PanelRightOpen, PanelRightClose } from "lucide-react";
+import {
+  LogOut,
+  Send,
+  Copy,
+  Check,
+  X,
+  Loader2,
+  GitBranch,
+  PanelRightOpen,
+  PanelRightClose,
+} from "lucide-react";
 import Image from "next/image";
 import { toast } from "sonner";
 import { Node } from "reactflow";
@@ -19,9 +33,9 @@ function ChatDetailPageContent() {
   const searchParams = useSearchParams();
   const chatId = params.id as string;
   const branchId = searchParams.get("branch"); // Get branch from URL query
-  const { 
-    messages, 
-    isLoading: isLoadingMessages, 
+  const {
+    messages,
+    isLoading: isLoadingMessages,
     isFetchingMore,
     hasMore,
     refetch,
@@ -36,7 +50,8 @@ function ChatDetailPageContent() {
     addBranchPoint,
     initializeFromMessages,
   } = useFlowSSEChat(chatId);
-  const { branchFromResponseAsync, isBranching } = useBranchFromResponse(chatId);
+  const { branchFromResponseAsync, isBranching } =
+    useBranchFromResponse(chatId);
   const { branchInfo, isLoading: isLoadingBranch } = useBranchInfo(branchId);
   const [input, setInput] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -69,11 +84,50 @@ function ChatDetailPageContent() {
       previousScrollHeight.current = 0;
     }
   }, [messages, isFetchingMore]);
+  // Track if we've scrolled to bottom for the current chat
+  const hasScrolledToBottom = useRef(false);
+  const currentChatId = useRef(chatId);
+
+  // Reset scroll flag when chat changes
   useEffect(() => {
-    if (scrollRef.current && !previousScrollHeight.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    if (currentChatId.current !== chatId) {
+      hasScrolledToBottom.current = false;
+      currentChatId.current = chatId;
     }
-  }, [messages.length === 0 ? messages.length : 0]); // Only on initial load
+  }, [chatId, branchId]);
+
+  // Scroll to bottom when messages are loaded
+  useEffect(() => {
+    const scrollElement = scrollRef.current;
+
+    // Only scroll if:
+    // 1. We have a scroll container
+    // 2. Messages are loaded
+    // 3. Not currently loading
+    // 4. Haven't scrolled yet for this chat
+    // 5. Not fetching more (to avoid interfering with pagination)
+    if (
+      scrollElement &&
+      messages.length > 0 &&
+      !isLoadingMessages &&
+      !hasScrolledToBottom.current &&
+      !previousScrollHeight.current // Don't interfere with pagination scroll
+    ) {
+      // Small delay to ensure DOM is rendered
+      const timeoutId = setTimeout(() => {
+        if (scrollElement) {
+          scrollElement.scrollTop = scrollElement.scrollHeight;
+          hasScrolledToBottom.current = true;
+          console.log(
+            "Scrolled to bottom. Height:",
+            scrollElement.scrollHeight
+          );
+        }
+      }, 150);
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [messages.length, isLoadingMessages]);
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
@@ -101,24 +155,41 @@ function ChatDetailPageContent() {
       !flowState.isStreaming
     ) {
       const hasCouncilData = messages.some(
-        (msg) => msg.stored_council_responses && msg.stored_council_responses.length > 0
+        (msg) =>
+          msg.stored_council_responses &&
+          msg.stored_council_responses.length > 0
       );
       if (hasCouncilData) {
-        const parentContext = branchInfo ? {
-          parentMessage: branchInfo.parentMessage ? {
-            id: branchInfo.parentMessage.id,
-            content: branchInfo.parentMessage.content,
-          } : undefined,
-          parentResponse: branchInfo.parentResponse ? {
-            id: branchInfo.parentResponse.id,
-            model: branchInfo.parentResponse.model,
-            content: branchInfo.parentResponse.content,
-          } : undefined,
-        } : undefined;
+        const parentContext = branchInfo
+          ? {
+              parentMessage: branchInfo.parentMessage
+                ? {
+                    id: branchInfo.parentMessage.id,
+                    content: branchInfo.parentMessage.content,
+                  }
+                : undefined,
+              parentResponse: branchInfo.parentResponse
+                ? {
+                    id: branchInfo.parentResponse.id,
+                    model: branchInfo.parentResponse.model,
+                    content: branchInfo.parentResponse.content,
+                  }
+                : undefined,
+            }
+          : undefined;
         initializeFromMessages(messages, chatId, parentContext);
       }
     }
-  }, [messages, isLoadingMessages, isLoadingBranch, flowState.nodes.length, flowState.isStreaming, initializeFromMessages, chatId, branchInfo]);
+  }, [
+    messages,
+    isLoadingMessages,
+    isLoadingBranch,
+    flowState.nodes.length,
+    flowState.isStreaming,
+    initializeFromMessages,
+    chatId,
+    branchInfo,
+  ]);
   const handleSendMessage = async () => {
     if (!input.trim() || flowState.isStreaming) return;
     const message = input.trim();
@@ -143,7 +214,11 @@ function ChatDetailPageContent() {
     toast.success("Copied to clipboard");
   };
   const handleNodeClick = (event: React.MouseEvent, node: Node) => {
-    if (node.type === "modelResponse" || node.type === "finalAnswer" || node.type === "userPrompt") {
+    if (
+      node.type === "modelResponse" ||
+      node.type === "finalAnswer" ||
+      node.type === "userPrompt"
+    ) {
       setSelectedNodeId(node.id);
       setSidebarOpen(true);
     } else if (node.type === "branch") {
@@ -203,9 +278,10 @@ function ChatDetailPageContent() {
   };
   const selectedContext = getSelectedContext();
   const selectedModel = getModelFromNodeId(selectedNodeId);
-  const selectedModelNode = selectedModel && selectedContext
-    ? selectedContext.modelNodes.find((n) => n.model === selectedModel)
-    : null;
+  const selectedModelNode =
+    selectedModel && selectedContext
+      ? selectedContext.modelNodes.find((n) => n.model === selectedModel)
+      : null;
   const isFinalAnswerSelected = selectedNodeId?.startsWith("final-");
   const getSidebarContent = () => {
     if (!selectedContext) return null;
@@ -254,32 +330,24 @@ function ChatDetailPageContent() {
   const sidebarContent = getSidebarContent();
   if (isLoadingMessages) {
     return (
-      <div className="flex h-full items-center justify-center">
+      <div className="bg-background flex h-full items-center justify-center overflow-hidden lg:rounded-tl-4xl">
         <div className="text-foreground/60">Loading chat...</div>
       </div>
     );
   }
   const showCanvas = flowState.nodes.length > 0;
   return (
-    <div className="h-full w-full">
+    <div className="bg-background text-foreground h-full w-full overflow-hidden lg:rounded-tl-4xl">
       <main className="relative flex h-full flex-1 flex-col">
-        {/* Mobile Header */}
-        <header className="flex h-16 shrink-0 items-center justify-between border-b border-black/10 px-4 md:hidden">
-          <div className="flex items-center gap-2">
-            <Image src="/logo.png" alt="Kakcil Logo" width={24} height={24} />
-            <span className="font-bold">KAKCIL</span>
-          </div>
-          <Button variant="ghost" size="icon" onClick={() => logout()}>
-            <LogOut className="h-5 w-5" />
-          </Button>
-        </header>
         {/* Chat Area */}
         <div className="relative flex flex-1 flex-col overflow-hidden">
           {/* Show canvas when actively streaming a new message */}
           {showCanvas ? (
             <div className="flex h-full">
               {/* Canvas - hidden on mobile when sidebar is open */}
-              <div className={`flex-1 ${mobileShowSidebar && sidebarOpen ? 'hidden md:block' : ''}`}>
+              <div
+                className={`flex-1 ${mobileShowSidebar && sidebarOpen ? "hidden md:block" : ""}`}
+              >
                 <FlowCanvas
                   nodes={flowState.nodes}
                   edges={flowState.edges}
@@ -291,7 +359,7 @@ function ChatDetailPageContent() {
                 {sidebarOpen && !mobileShowSidebar && (
                   <button
                     onClick={() => setMobileShowSidebar(true)}
-                    className="absolute bottom-4 right-4 z-10 flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-primary-foreground shadow-lg md:hidden"
+                    className="bg-primary text-primary-foreground absolute right-4 bottom-4 z-10 flex items-center gap-2 rounded-full px-4 py-2 shadow-lg md:hidden"
                   >
                     <PanelRightOpen className="h-4 w-4" />
                     <span className="text-sm font-medium">View Details</span>
@@ -300,10 +368,12 @@ function ChatDetailPageContent() {
               </div>
               {/* Sidebar for selected node - fullscreen on mobile when mobileShowSidebar is true */}
               {sidebarOpen && (
-                <div className={`flex h-full flex-col border-l border-gray-300 bg-white dark:border-gray-700 dark:bg-gray-900 ${mobileShowSidebar ? 'fixed inset-0 z-50 w-full md:relative md:w-[450px]' : 'hidden md:flex md:w-[450px]'}`}>
+                <div
+                  className={`flex h-full flex-col border-l border-gray-300 bg-white dark:border-gray-700 dark:bg-gray-900 ${mobileShowSidebar ? "fixed inset-0 z-50 w-full md:relative md:w-[450px]" : "hidden md:flex md:w-[450px]"}`}
+                >
                   <div className="flex items-center justify-between border-b border-gray-300 p-4 dark:border-gray-700">
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-sm font-bold uppercase tracking-wide text-gray-900 dark:text-gray-100">
+                      <span className="font-mono text-sm font-bold tracking-wide text-gray-900 uppercase dark:text-gray-100">
                         {sidebarContent?.title || "Council Response"}
                       </span>
                       {sidebarContent?.isWinner && (
@@ -348,47 +418,57 @@ function ChatDetailPageContent() {
                         </div>
                       )}
                       {/* Branch Parent Context - shown when viewing a branched chat */}
-                      {branchInfo && (branchInfo.parentMessage || branchInfo.parentResponse) && (
-                        <div className="rounded-xl border-2 border-purple-300 bg-purple-50/50 p-4 dark:border-purple-700 dark:bg-purple-950/30">
-                          <div className="flex items-center gap-2 mb-3">
-                            <GitBranch className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-                            <span className="text-xs font-semibold uppercase tracking-wide text-purple-600 dark:text-purple-400">
-                              Branched From {branchInfo.branch?.branch_name || "Parent Chat"}
-                            </span>
+                      {branchInfo &&
+                        (branchInfo.parentMessage ||
+                          branchInfo.parentResponse) && (
+                          <div className="rounded-xl border-2 border-purple-300 bg-purple-50/50 p-4 dark:border-purple-700 dark:bg-purple-950/30">
+                            <div className="mb-3 flex items-center gap-2">
+                              <GitBranch className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                              <span className="text-xs font-semibold tracking-wide text-purple-600 uppercase dark:text-purple-400">
+                                Branched From{" "}
+                                {branchInfo.branch?.branch_name ||
+                                  "Parent Chat"}
+                              </span>
+                            </div>
+                            {/* Original Question */}
+                            {branchInfo.parentMessage && (
+                              <div className="mb-3">
+                                <div className="mb-1 text-xs text-purple-600/80 dark:text-purple-400/80">
+                                  Original Question:
+                                </div>
+                                <div className="rounded-lg bg-white/80 px-3 py-2 text-sm dark:bg-gray-800/80">
+                                  {branchInfo.parentMessage.content}
+                                </div>
+                              </div>
+                            )}
+                            {/* Response that was branched from */}
+                            {branchInfo.parentResponse && (
+                              <div>
+                                <div className="mb-1 text-xs text-purple-600/80 dark:text-purple-400/80">
+                                  Branched from{" "}
+                                  {branchInfo.parentResponse.model}&apos;s
+                                  response:
+                                </div>
+                                <div className="max-h-32 overflow-y-auto rounded-lg bg-white/80 px-3 py-2 text-sm dark:bg-gray-800/80">
+                                  <MarkdownMessage
+                                    content={branchInfo.parentResponse.content}
+                                  />
+                                </div>
+                              </div>
+                            )}
                           </div>
-                          {/* Original Question */}
-                          {branchInfo.parentMessage && (
-                            <div className="mb-3">
-                              <div className="text-xs text-purple-600/80 dark:text-purple-400/80 mb-1">Original Question:</div>
-                              <div className="rounded-lg bg-white/80 px-3 py-2 text-sm dark:bg-gray-800/80">
-                                {branchInfo.parentMessage.content}
-                              </div>
-                            </div>
-                          )}
-                          {/* Response that was branched from */}
-                          {branchInfo.parentResponse && (
-                            <div>
-                              <div className="text-xs text-purple-600/80 dark:text-purple-400/80 mb-1">
-                                Branched from {branchInfo.parentResponse.model}&apos;s response:
-                              </div>
-                              <div className="rounded-lg bg-white/80 px-3 py-2 text-sm dark:bg-gray-800/80 max-h-32 overflow-y-auto">
-                                <MarkdownMessage content={branchInfo.parentResponse.content} />
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
+                        )}
                       {/* Parent Message - shown for branched nodes (existing) */}
                       {sidebarContent?.parentMessage && (
                         <div className="space-y-2">
                           <div className="flex items-center gap-2">
-                            <span className="text-xs font-semibold uppercase tracking-wide text-purple-600 dark:text-purple-400">
+                            <span className="text-xs font-semibold tracking-wide text-purple-600 uppercase dark:text-purple-400">
                               Original Question (Branched From)
                             </span>
                           </div>
                           <div className="flex items-start justify-end gap-3">
                             <div className="max-w-[85%] rounded-2xl rounded-tr-sm border-2 border-purple-300 bg-purple-50 px-6 py-4 dark:border-purple-700 dark:bg-purple-950/40">
-                              <div className="whitespace-pre-wrap text-sm leading-relaxed text-purple-900 dark:text-purple-100">
+                              <div className="text-sm leading-relaxed whitespace-pre-wrap text-purple-900 dark:text-purple-100">
                                 {sidebarContent.parentMessage}
                               </div>
                             </div>
@@ -399,7 +479,7 @@ function ChatDetailPageContent() {
                       {sidebarContent?.prompt && (
                         <div className="flex items-start justify-end gap-3">
                           <div className="max-w-[85%] rounded-2xl rounded-tr-sm bg-black px-6 py-4 text-white dark:bg-gray-800">
-                            <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                            <div className="text-sm leading-relaxed whitespace-pre-wrap">
                               {sidebarContent.prompt}
                             </div>
                           </div>
@@ -409,12 +489,19 @@ function ChatDetailPageContent() {
                       {sidebarContent?.response && (
                         <div className="group w-full">
                           <div className="font-mono text-sm">
-                            <MarkdownMessage content={sidebarContent.response} />
+                            <MarkdownMessage
+                              content={sidebarContent.response}
+                            />
                           </div>
                           {!flowState.isStreaming && (
                             <div className="mt-2 flex items-center gap-2">
                               <Button
-                                onClick={() => handleCopy(sidebarContent.response!, "sidebar")}
+                                onClick={() =>
+                                  handleCopy(
+                                    sidebarContent.response!,
+                                    "sidebar"
+                                  )
+                                }
                                 variant="outline"
                                 size="sm"
                               >
@@ -431,27 +518,34 @@ function ChatDetailPageContent() {
                                 )}
                               </Button>
                               {/* Branch button - only show for model responses, not final answers */}
-                              {selectedModel && selectedModelNode && !isFinalAnswerSelected && (
-                                <Button
-                                  onClick={() => handleBranchFrom(selectedModel, sidebarContent.response!)}
-                                  variant="outline"
-                                  size="sm"
-                                  disabled={isBranching}
-                                  className="border-purple-300 text-purple-700 hover:bg-purple-50 hover:text-purple-800 dark:border-purple-600 dark:text-purple-400 dark:hover:bg-purple-950"
-                                >
-                                  {isBranching ? (
-                                    <>
-                                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                      Branching...
-                                    </>
-                                  ) : (
-                                    <>
-                                      <GitBranch className="mr-2 h-4 w-4" />
-                                      Branch From Here
-                                    </>
-                                  )}
-                                </Button>
-                              )}
+                              {selectedModel &&
+                                selectedModelNode &&
+                                !isFinalAnswerSelected && (
+                                  <Button
+                                    onClick={() =>
+                                      handleBranchFrom(
+                                        selectedModel,
+                                        sidebarContent.response!
+                                      )
+                                    }
+                                    variant="outline"
+                                    size="sm"
+                                    disabled={isBranching}
+                                    className="border-purple-300 text-purple-700 hover:bg-purple-50 hover:text-purple-800 dark:border-purple-600 dark:text-purple-400 dark:hover:bg-purple-950"
+                                  >
+                                    {isBranching ? (
+                                      <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Branching...
+                                      </>
+                                    ) : (
+                                      <>
+                                        <GitBranch className="mr-2 h-4 w-4" />
+                                        Branch From Here
+                                      </>
+                                    )}
+                                  </Button>
+                                )}
                             </div>
                           )}
                         </div>
@@ -460,7 +554,9 @@ function ChatDetailPageContent() {
                       {flowState.isStreaming && !sidebarContent?.response && (
                         <div className="flex items-center gap-2 text-gray-500">
                           <Loader2 className="h-4 w-4 animate-spin" />
-                          <span className="text-sm">Council is deliberating...</span>
+                          <span className="text-sm">
+                            Council is deliberating...
+                          </span>
                         </div>
                       )}
                     </div>
@@ -503,7 +599,9 @@ function ChatDetailPageContent() {
                       <div
                         key={message.id}
                         className={`flex items-start gap-3 ${
-                          message.role === "user" ? "justify-end" : "justify-start"
+                          message.role === "user"
+                            ? "justify-end"
+                            : "justify-start"
                         }`}
                       >
                         <div
@@ -514,14 +612,16 @@ function ChatDetailPageContent() {
                           }`}
                         >
                           {message.role === "user" ? (
-                            <div className="whitespace-pre-wrap leading-relaxed">
+                            <div className="leading-relaxed whitespace-pre-wrap">
                               {message.content}
                             </div>
                           ) : (
                             <>
                               <MarkdownMessage content={message.content} />
                               <button
-                                onClick={() => handleCopy(message.content, message.id)}
+                                onClick={() =>
+                                  handleCopy(message.content, message.id)
+                                }
                                 className="cursor-pointer rounded-sm border border-black/10 bg-white p-1.5 hover:bg-gray-50"
                                 title="Copy message"
                               >
@@ -535,10 +635,13 @@ function ChatDetailPageContent() {
                           )}
                           {message.role === "user" && message.timestamp && (
                             <span className="mt-2 block text-[10px] opacity-60">
-                              {new Date(message.timestamp).toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
+                              {new Date(message.timestamp).toLocaleTimeString(
+                                [],
+                                {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                }
+                              )}
                             </span>
                           )}
                         </div>
@@ -549,6 +652,8 @@ function ChatDetailPageContent() {
                         )}
                       </div>
                     ))}
+                    {/* Scroll anchor - invisible element at the bottom */}
+                    <div id="messages-bottom" className="h-0" />
                   </div>
                 </div>
               ) : (
@@ -581,7 +686,7 @@ function ChatDetailPageContent() {
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder="Ask the council..."
-                    className="placeholder:text-background/50 text-background max-h-[200px] min-h-[50px] w-full resize-none border-0 bg-transparent px-2 py-3 text-base outline-none ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                    className="placeholder:text-background/50 text-background max-h-[200px] min-h-[50px] w-full resize-none border-0 bg-transparent px-2 py-3 text-base ring-0 outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
                     disabled={flowState.isStreaming}
                     rows={1}
                   />

@@ -23,9 +23,9 @@ export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
   return (
     <ProtectedRoute>
-      <main className="relative flex h-full flex-1 flex-col overflow-y-auto bg-background text-foreground">
+      <main className="bg-background text-foreground relative flex h-full flex-1 flex-col overflow-hidden overflow-y-auto rounded-tl-4xl">
         {/* Mobile Header */}
-        <header className="flex h-16 shrink-0 items-center justify-between border-b border-border px-4 md:hidden">
+        <header className="border-border flex h-16 shrink-0 items-center justify-between border-b px-4 md:hidden">
           <div className="flex items-center gap-2">
             <Image
               src="/logo.png"
@@ -43,12 +43,12 @@ export default function SettingsPage() {
         <div className="mx-auto w-full max-w-4xl space-y-8 p-8">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-            <p className="mt-2 text-muted-foreground">
+            <p className="text-muted-foreground mt-2">
               Manage your account and preferences
             </p>
           </div>
           <div className="grid gap-6">
-            <Card className="border-2 border-border">
+            <Card className="border-border border-2">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Monitor className="h-5 w-5" /> Appearance
@@ -60,10 +60,10 @@ export default function SettingsPage() {
                   <Button
                     variant="outline"
                     className={cn(
-                      "flex h-24 flex-col gap-2 border-2 hover:bg-accent hover:text-accent-foreground",
+                      "hover:bg-accent hover:text-accent-foreground flex h-24 flex-col gap-2 border-2",
                       theme === "light"
                         ? "border-primary bg-accent text-accent-foreground"
-                        : "border-border",
+                        : "border-border"
                     )}
                     onClick={() => setTheme("light")}
                   >
@@ -73,10 +73,10 @@ export default function SettingsPage() {
                   <Button
                     variant="outline"
                     className={cn(
-                      "flex h-24 flex-col gap-2 border-2 hover:bg-accent hover:text-accent-foreground",
+                      "hover:bg-accent hover:text-accent-foreground flex h-24 flex-col gap-2 border-2",
                       theme === "dark"
                         ? "border-primary bg-accent text-accent-foreground"
-                        : "border-border",
+                        : "border-border"
                     )}
                     onClick={() => setTheme("dark")}
                   >
@@ -86,10 +86,10 @@ export default function SettingsPage() {
                   <Button
                     variant="outline"
                     className={cn(
-                      "flex h-24 flex-col gap-2 border-2 hover:bg-accent hover:text-accent-foreground",
+                      "hover:bg-accent hover:text-accent-foreground flex h-24 flex-col gap-2 border-2",
                       theme === "system"
                         ? "border-primary bg-accent text-accent-foreground"
-                        : "border-border",
+                        : "border-border"
                     )}
                     onClick={() => setTheme("system")}
                   >
@@ -101,7 +101,7 @@ export default function SettingsPage() {
             </Card>
             {/* Council Members Section */}
             <CouncilMembersSettings />
-            <Card className="border-2 border-border">
+            <Card className="border-border border-2">
               <CardHeader>
                 <CardTitle>Account</CardTitle>
                 <CardDescription>Your account information</CardDescription>

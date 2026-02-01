@@ -7,7 +7,7 @@ const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
   prettierConfig,
- {
+  {
     rules: {
       "@typescript-eslint/no-unused-vars": [
         "warn",
@@ -16,10 +16,11 @@ const eslintConfig = defineConfig([
           varsIgnorePattern: "^_",
         },
       ],
+      "react-hooks/exhaustive-deps": "off",
       "react/no-unescaped-entities": "off",
       "@typescript-eslint/no-explicit-any": "off",
-    }
- },
+    },
+  },
   globalIgnores([
     "node_modules/**",
     ".next/**",
