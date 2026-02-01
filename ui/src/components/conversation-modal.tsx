@@ -1,5 +1,4 @@
 "use client";
-
 import { ModelNode } from "@/types/chat";
 import {
   Dialog,
@@ -12,14 +11,12 @@ import { Button } from "@/components/ui/button";
 import { Copy, Check } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-
 interface ConversationModalProps {
   isOpen: boolean;
   onClose: () => void;
   node: ModelNode | null;
   userMessage: string;
 }
-
 export function ConversationModal({
   isOpen,
   onClose,
@@ -27,7 +24,6 @@ export function ConversationModal({
   userMessage,
 }: ConversationModalProps) {
   const [copied, setCopied] = useState(false);
-
   const handleCopy = async () => {
     if (node?.response) {
       await navigator.clipboard.writeText(node.response);
@@ -36,9 +32,7 @@ export function ConversationModal({
       toast.success("Copied to clipboard");
     }
   };
-
   if (!node) return null;
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
@@ -52,7 +46,6 @@ export function ConversationModal({
             )}
           </DialogTitle>
         </DialogHeader>
-
         <div className="space-y-6 pt-4">
           {/* User Message */}
           <div className="flex items-start gap-3 justify-end">
@@ -62,7 +55,6 @@ export function ConversationModal({
               </div>
             </div>
           </div>
-
           {/* Model Response */}
           {node.response && (
             <div className="group w-full">
@@ -89,7 +81,6 @@ export function ConversationModal({
               </Button>
             </div>
           )}
-
           {/* Metadata */}
           {node.topic && (
             <div className="border-t pt-4">

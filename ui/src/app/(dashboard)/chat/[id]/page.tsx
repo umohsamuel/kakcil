@@ -1,24 +1,24 @@
 "use client";
-
 import { useState, useRef, useEffect, useCallback } from "react";
 import { ProtectedRoute } from "@/components/protected-route";
 import { useAuth } from "@/hooks/use-auth";
-import { useMessages, useBranchFromResponse } from "@/hooks/use-chat";
+import { useMessages, useBranchFromResponse, useBranchInfo } from "@/hooks/use-chat";
 import { useFlowSSEChat } from "@/hooks/use-sse-chat";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { FlowCanvas } from "@/components/flow-canvas";
 import { MarkdownMessage } from "@/components/markdown-message";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { LogOut, Send, Copy, Check, X, Loader2, GitBranch } from "lucide-react";
+import { LogOut, Send, Copy, Check, X, Loader2, GitBranch, PanelRightOpen, PanelRightClose } from "lucide-react";
 import Image from "next/image";
 import { toast } from "sonner";
 import { Node } from "reactflow";
-
 function ChatDetailPageContent() {
   const { user, logout } = useAuth();
   const params = useParams();
+  const searchParams = useSearchParams();
   const chatId = params.id as string;
+  const branchId = searchParams.get("branch"); // Get branch from URL query
   const { 
     messages, 
     isLoading: isLoadingMessages, 
@@ -26,7 +26,7 @@ function ChatDetailPageContent() {
     hasMore,
     refetch,
     fetchMore,
-  } = useMessages(chatId);
+  } = useMessages(chatId, branchId || undefined); // Pass branchId to load branch messages
   const {
     flowState,
     onNodesChange,
@@ -37,32 +37,27 @@ function ChatDetailPageContent() {
     initializeFromMessages,
   } = useFlowSSEChat(chatId);
   const { branchFromResponseAsync, isBranching } = useBranchFromResponse(chatId);
+  const { branchInfo, isLoading: isLoadingBranch } = useBranchInfo(branchId);
   const [input, setInput] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [mobileShowSidebar, setMobileShowSidebar] = useState(false); // On mobile: true = show sidebar, false = show canvas
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const previousScrollHeight = useRef<number>(0);
-
-  // Infinite scroll - fetch more when scrolling to top
   useEffect(() => {
     const scrollElement = scrollRef.current;
     if (!scrollElement) return;
-
     const handleScroll = () => {
-      // When near top (within 100px), fetch more
       if (scrollElement.scrollTop < 100 && hasMore && !isFetchingMore) {
         previousScrollHeight.current = scrollElement.scrollHeight;
         fetchMore();
       }
     };
-
     scrollElement.addEventListener("scroll", handleScroll);
     return () => scrollElement.removeEventListener("scroll", handleScroll);
   }, [hasMore, isFetchingMore, fetchMore]);
-
-  // Maintain scroll position after loading more messages
   useEffect(() => {
     const scrollElement = scrollRef.current;
     if (scrollElement && previousScrollHeight.current > 0 && !isFetchingMore) {
@@ -74,22 +69,17 @@ function ChatDetailPageContent() {
       previousScrollHeight.current = 0;
     }
   }, [messages, isFetchingMore]);
-
-  // Scroll to bottom on initial load
   useEffect(() => {
     if (scrollRef.current && !previousScrollHeight.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages.length === 0 ? messages.length : 0]); // Only on initial load
-
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
       textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
     }
   }, [input]);
-
-  // Refetch messages when conversation finishes
   useEffect(() => {
     if (!flowState.isStreaming && flowState.finalResponse) {
       setTimeout(() => {
@@ -97,93 +87,91 @@ function ChatDetailPageContent() {
       }, 1000);
     }
   }, [flowState.isStreaming, flowState.finalResponse, refetch]);
-
-  // Open sidebar when streaming starts
   useEffect(() => {
     if (flowState.isStreaming) {
       setSidebarOpen(true);
     }
   }, [flowState.isStreaming]);
-
-  // Initialize canvas from historical messages with council responses
   useEffect(() => {
-    // Only initialize if we have messages with council responses and flow is empty
     if (
       !isLoadingMessages &&
+      !isLoadingBranch &&
       messages.length > 0 &&
       flowState.nodes.length === 0 &&
       !flowState.isStreaming
     ) {
-      // Check if any message has council responses
       const hasCouncilData = messages.some(
         (msg) => msg.stored_council_responses && msg.stored_council_responses.length > 0
       );
       if (hasCouncilData) {
-        initializeFromMessages(messages, chatId);
+        const parentContext = branchInfo ? {
+          parentMessage: branchInfo.parentMessage ? {
+            id: branchInfo.parentMessage.id,
+            content: branchInfo.parentMessage.content,
+          } : undefined,
+          parentResponse: branchInfo.parentResponse ? {
+            id: branchInfo.parentResponse.id,
+            model: branchInfo.parentResponse.model,
+            content: branchInfo.parentResponse.content,
+          } : undefined,
+        } : undefined;
+        initializeFromMessages(messages, chatId, parentContext);
       }
     }
-  }, [messages, isLoadingMessages, flowState.nodes.length, flowState.isStreaming, initializeFromMessages, chatId]);
-
+  }, [messages, isLoadingMessages, isLoadingBranch, flowState.nodes.length, flowState.isStreaming, initializeFromMessages, chatId, branchInfo]);
   const handleSendMessage = async () => {
     if (!input.trim() || flowState.isStreaming) return;
-
     const message = input.trim();
     setInput("");
     setSidebarOpen(true);
-
     try {
-      await startStreaming(message, chatId);
+      await startStreaming(message, chatId, branchId || undefined);
     } catch (error) {
       toast.error("Sorry, there was an error processing your request.");
     }
   };
-
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
   };
-
   const handleCopy = async (text: string, messageId: string) => {
     await navigator.clipboard.writeText(text);
     setCopiedId(messageId);
     setTimeout(() => setCopiedId(null), 2000);
     toast.success("Copied to clipboard");
   };
-
   const handleNodeClick = (event: React.MouseEvent, node: Node) => {
     if (node.type === "modelResponse" || node.type === "finalAnswer" || node.type === "userPrompt") {
       setSelectedNodeId(node.id);
       setSidebarOpen(true);
+    } else if (node.type === "branch") {
+      const branchId = node.data.branchId;
+      if (branchId) {
+        window.location.href = `/chat/${chatId}?branch=${branchId}`;
+      }
     }
   };
-
-  // Handle branching from a model response
   const handleBranchFrom = async (model: string, response: string) => {
     if (!selectedNodeId || !selectedModelNode || isBranching) return;
-
-    // Get the parent prompt for this branch
     const selectedContext = getSelectedContext();
     const parentPrompt = selectedContext?.prompt || flowState.userMessage;
-
     try {
-      // For now, we'll prompt the user to enter a message to continue the branch
-      // The branch is created immediately, showing it on the canvas
       const branchResult = await branchFromResponseAsync({
         message: "Continue from this response", // Default message, user can change
         chat_id: chatId,
         response_id: selectedModelNode.model, // This should be the actual response ID from backend
       });
-
-      // Add branch point to the canvas visualization
       if (branchResult && branchResult.branch) {
         addBranchPoint(
           selectedNodeId,
           branchResult.branch.id,
           model,
           response,
-          parentPrompt
+          parentPrompt,
+          branchResult.branch.branch_name || `${model} Branch`,
+          "Continue from this response" // The message that starts the branch
         );
         toast.success(`Branch created from ${model} response`);
       }
@@ -191,16 +179,11 @@ function ChatDetailPageContent() {
       toast.error("Failed to create branch");
     }
   };
-
-  // Get context for the selected node based on its round
   const getSelectedContext = () => {
     if (!selectedNodeId) return null;
-    
     const round = getRoundFromNodeId(selectedNodeId);
     const roundData = flowState.rounds[round];
-    
     if (!roundData) {
-      // Fallback to current round data
       return {
         prompt: flowState.userMessage,
         modelNodes: flowState.modelNodes,
@@ -208,11 +191,8 @@ function ChatDetailPageContent() {
         round: flowState.conversationRound,
       };
     }
-
     return { ...roundData, round };
   };
-
-  // Get the specific model from the selected node
   const getModelFromNodeId = (nodeId: string | null): string | null => {
     if (!nodeId) return null;
     if (nodeId.startsWith("model-")) {
@@ -221,22 +201,16 @@ function ChatDetailPageContent() {
     }
     return null;
   };
-
   const selectedContext = getSelectedContext();
   const selectedModel = getModelFromNodeId(selectedNodeId);
   const selectedModelNode = selectedModel && selectedContext
     ? selectedContext.modelNodes.find((n) => n.model === selectedModel)
     : null;
   const isFinalAnswerSelected = selectedNodeId?.startsWith("final-");
-
-  // Get display content for sidebar
   const getSidebarContent = () => {
     if (!selectedContext) return null;
-
-    // Check if selected node is a branch point
     const isBranchNode = selectedNodeId?.startsWith("branch-");
     if (isBranchNode) {
-      // Find the branch point to get parent context
       const branchPoint = flowState.branchPoints.find(
         (bp) => bp.nodeId === selectedNodeId
       );
@@ -251,7 +225,6 @@ function ChatDetailPageContent() {
         };
       }
     }
-
     if (selectedModel && selectedModelNode) {
       return {
         title: selectedModelNode.model,
@@ -260,7 +233,6 @@ function ChatDetailPageContent() {
         response: selectedModelNode.response,
       };
     }
-
     if (isFinalAnswerSelected && selectedContext.finalResponse) {
       return {
         title: `Final Answer (${selectedContext.finalResponse.model})`,
@@ -269,7 +241,6 @@ function ChatDetailPageContent() {
         response: selectedContext.finalResponse.response,
       };
     }
-
     if (selectedNodeId?.startsWith("prompt-")) {
       return {
         title: "Your Question",
@@ -278,12 +249,9 @@ function ChatDetailPageContent() {
         response: null,
       };
     }
-
     return null;
   };
-
   const sidebarContent = getSidebarContent();
-
   if (isLoadingMessages) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -291,9 +259,7 @@ function ChatDetailPageContent() {
       </div>
     );
   }
-
   const showCanvas = flowState.nodes.length > 0;
-
   return (
     <div className="h-full w-full">
       <main className="relative flex h-full flex-1 flex-col">
@@ -307,14 +273,13 @@ function ChatDetailPageContent() {
             <LogOut className="h-5 w-5" />
           </Button>
         </header>
-
         {/* Chat Area */}
         <div className="relative flex flex-1 flex-col overflow-hidden">
           {/* Show canvas when actively streaming a new message */}
           {showCanvas ? (
             <div className="flex h-full">
-              {/* Canvas */}
-              <div className="flex-1">
+              {/* Canvas - hidden on mobile when sidebar is open */}
+              <div className={`flex-1 ${mobileShowSidebar && sidebarOpen ? 'hidden md:block' : ''}`}>
                 <FlowCanvas
                   nodes={flowState.nodes}
                   edges={flowState.edges}
@@ -322,11 +287,20 @@ function ChatDetailPageContent() {
                   onEdgesChange={onEdgesChange}
                   onNodeClick={handleNodeClick}
                 />
+                {/* Mobile toggle button to show sidebar when a node is selected */}
+                {sidebarOpen && !mobileShowSidebar && (
+                  <button
+                    onClick={() => setMobileShowSidebar(true)}
+                    className="absolute bottom-4 right-4 z-10 flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-primary-foreground shadow-lg md:hidden"
+                  >
+                    <PanelRightOpen className="h-4 w-4" />
+                    <span className="text-sm font-medium">View Details</span>
+                  </button>
+                )}
               </div>
-
-              {/* Sidebar for selected node */}
+              {/* Sidebar for selected node - fullscreen on mobile when mobileShowSidebar is true */}
               {sidebarOpen && (
-                <div className="flex h-full w-[450px] flex-col border-l border-gray-300 bg-white dark:border-gray-700 dark:bg-gray-900">
+                <div className={`flex h-full flex-col border-l border-gray-300 bg-white dark:border-gray-700 dark:bg-gray-900 ${mobileShowSidebar ? 'fixed inset-0 z-50 w-full md:relative md:w-[450px]' : 'hidden md:flex md:w-[450px]'}`}>
                   <div className="flex items-center justify-between border-b border-gray-300 p-4 dark:border-gray-700">
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-sm font-bold uppercase tracking-wide text-gray-900 dark:text-gray-100">
@@ -341,18 +315,30 @@ function ChatDetailPageContent() {
                         <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
                       )}
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        setSidebarOpen(false);
-                        setSelectedNodeId(null);
-                      }}
-                    >
-                      <X className="h-5 w-5" />
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      {/* Mobile back button */}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setMobileShowSidebar(false)}
+                        className="md:hidden"
+                      >
+                        <PanelRightClose className="h-5 w-5" />
+                      </Button>
+                      {/* Close button */}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          setSidebarOpen(false);
+                          setSelectedNodeId(null);
+                          setMobileShowSidebar(false);
+                        }}
+                      >
+                        <X className="h-5 w-5" />
+                      </Button>
+                    </div>
                   </div>
-                  
                   <div className="flex-1 overflow-y-auto p-4">
                     <div className="space-y-6">
                       {/* Round indicator */}
@@ -361,8 +347,38 @@ function ChatDetailPageContent() {
                           Round {selectedContext.round + 1}
                         </div>
                       )}
-
-                      {/* Parent Message - shown for branched nodes */}
+                      {/* Branch Parent Context - shown when viewing a branched chat */}
+                      {branchInfo && (branchInfo.parentMessage || branchInfo.parentResponse) && (
+                        <div className="rounded-xl border-2 border-purple-300 bg-purple-50/50 p-4 dark:border-purple-700 dark:bg-purple-950/30">
+                          <div className="flex items-center gap-2 mb-3">
+                            <GitBranch className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                            <span className="text-xs font-semibold uppercase tracking-wide text-purple-600 dark:text-purple-400">
+                              Branched From {branchInfo.branch?.branch_name || "Parent Chat"}
+                            </span>
+                          </div>
+                          {/* Original Question */}
+                          {branchInfo.parentMessage && (
+                            <div className="mb-3">
+                              <div className="text-xs text-purple-600/80 dark:text-purple-400/80 mb-1">Original Question:</div>
+                              <div className="rounded-lg bg-white/80 px-3 py-2 text-sm dark:bg-gray-800/80">
+                                {branchInfo.parentMessage.content}
+                              </div>
+                            </div>
+                          )}
+                          {/* Response that was branched from */}
+                          {branchInfo.parentResponse && (
+                            <div>
+                              <div className="text-xs text-purple-600/80 dark:text-purple-400/80 mb-1">
+                                Branched from {branchInfo.parentResponse.model}&apos;s response:
+                              </div>
+                              <div className="rounded-lg bg-white/80 px-3 py-2 text-sm dark:bg-gray-800/80 max-h-32 overflow-y-auto">
+                                <MarkdownMessage content={branchInfo.parentResponse.content} />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      {/* Parent Message - shown for branched nodes (existing) */}
                       {sidebarContent?.parentMessage && (
                         <div className="space-y-2">
                           <div className="flex items-center gap-2">
@@ -379,7 +395,6 @@ function ChatDetailPageContent() {
                           </div>
                         </div>
                       )}
-
                       {/* User Message */}
                       {sidebarContent?.prompt && (
                         <div className="flex items-start justify-end gap-3">
@@ -390,7 +405,6 @@ function ChatDetailPageContent() {
                           </div>
                         </div>
                       )}
-                      
                       {/* Response */}
                       {sidebarContent?.response && (
                         <div className="group w-full">
@@ -442,7 +456,6 @@ function ChatDetailPageContent() {
                           )}
                         </div>
                       )}
-
                       {/* Loading indicator */}
                       {flowState.isStreaming && !sidebarContent?.response && (
                         <div className="flex items-center gap-2 text-gray-500">
@@ -452,7 +465,6 @@ function ChatDetailPageContent() {
                       )}
                     </div>
                   </div>
-
                   {/* Input in sidebar */}
                   <div className="border-t border-gray-300 p-4 dark:border-gray-700">
                     <div className="flex items-end gap-2 rounded-2xl border-2 border-gray-900 bg-gray-900 p-2 focus-within:border-gray-700 dark:border-gray-100 dark:bg-gray-100">
@@ -530,7 +542,6 @@ function ChatDetailPageContent() {
                             </span>
                           )}
                         </div>
-
                         {message.role === "user" && (
                           <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-tr from-gray-700 to-gray-900 text-xs font-bold text-white">
                             {user?.name?.[0] || "U"}
@@ -559,7 +570,6 @@ function ChatDetailPageContent() {
               )}
             </>
           )}
-
           {/* Input Area - Always at bottom when canvas not showing */}
           {!showCanvas && (
             <div className="bg-background border-foreground/10 border-t p-4 md:p-6">
@@ -592,7 +602,6 @@ function ChatDetailPageContent() {
     </div>
   );
 }
-
 export default function ChatDetailPage() {
   return (
     <ProtectedRoute>

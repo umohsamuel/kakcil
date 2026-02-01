@@ -1,22 +1,18 @@
 "use client";
-
 import { useAuthStore } from "@/store/auth.store";
-import { Button } from "@/components/ui/button";
-import {
-  LogOut,
-  MessageSquare,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Settings,
-  Loader2,
-} from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useChats } from "@/hooks/use-chats";
+import { usePathname, useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useParams, useRouter } from "next/navigation";
-import { cn } from "@/lib/utils";
-import { useState, useCallback } from "react";
+import { useCallback } from "react";
+import { LogOut, MessageSquare, Settings, Loader2, Plus, X } from "lucide-react";
+import {
+  Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent,
+  SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
+  SidebarSeparator, SidebarTrigger, useSidebar,
+} from "@/components/ui/sidebar";
+import { Button } from "@/components/ui/button";
 
 export function AppSidebar() {
   const { user } = useAuthStore();
@@ -26,158 +22,103 @@ export function AppSidebar() {
   const router = useRouter();
   const currentChatId = params.id ?? ("" as string);
   const { chats, isLoading, error } = useChats();
+  const { isMobile, setOpenMobile } = useSidebar();
 
-  const [isOpenSidebar, setIsOpenSidebar] = useState(true);
-
-  function handleIsOpenSidebar() {
-    setIsOpenSidebar(!isOpenSidebar);
-  }
-
-  // Handle New Chat click with proper reset when already on chat page
   const handleNewChat = useCallback(() => {
     if (pathname === "/chat" && !currentChatId) {
-      // Already on /chat with no chat selected, force refresh to reset state
-      router.refresh();
-      // Also navigate to force a full page remount
       window.location.href = "/chat";
     } else {
       router.push("/chat");
     }
-  }, [pathname, currentChatId, router]);
+    if (isMobile) setOpenMobile(false);
+  }, [pathname, currentChatId, router, isMobile, setOpenMobile]);
+
+  const handleNavigation = () => {
+    if (isMobile) setOpenMobile(false);
+  };
 
   return (
-    <aside
-      className={
-        "border-border bg-foreground text-background relative z-50 flex h-full w-full min-w-12 flex-col border-r font-mono"
-      }
-    >
-      <button
-        onClick={handleIsOpenSidebar}
-        className={cn(
-          "absolute top-4 z-20 cursor-pointer p-1 transition-all duration-150 ease-in-out",
-          isOpenSidebar ? "right-4" : "left-1/2 -translate-x-1/2"
-        )}
-      >
-        {isOpenSidebar ? (
-          <PanelLeftClose className={`size-5 h-5 w-5`} />
-        ) : (
-          <PanelLeftOpen className={`size-5 h-5 w-5`} />
-        )}
-      </button>
-
-      <div
-        className={`hidden h-full w-64 flex-col md:flex ${isOpenSidebar ? "md:flex" : "md:hidden"}`}
-      >
-        <div className="flex w-full items-center gap-3 p-6">
-          <Image
-            src="/logo.png"
-            alt="Kakcil Logo"
-            width={32}
-            height={32}
-            className="invert-0 dark:invert-100"
-          />
-          <span className="text-xl font-bold tracking-wide">KAKCIL</span>
-        </div>
-        <div className="mt-4 flex w-full flex-1 flex-col gap-2 overflow-y-auto px-4">
-          <Button
-            variant="ghost"
-            onClick={handleNewChat}
-            className={cn(
-              "cursor-pointer justify-start gap-3 transition-all duration-150 ease-linear",
-              pathname === "/chat" && !currentChatId
-                ? "bg-background text-foreground hover:bg-background/50 hover:text-background w-full shadow-lg hover:shadow-none"
-                : "text-muted-foreground hover:bg-background/50 hover:text-foreground w-full"
-            )}
-          >
-            <MessageSquare className="h-5 w-5" />
-            New Chat
-          </Button>
-
-          <div className="border-border my-2 border-t" />
-
-          {isLoading && (
-            <div className="flex items-center justify-center py-4">
-              <Loader2 className="text-muted-foreground h-5 w-5 animate-spin" />
-            </div>
-          )}
-
-          {error && (
-            <p className="text-muted-foreground px-2 text-xs">
-              Failed to load chats
-            </p>
-          )}
-
-          {!isLoading && !error && chats.length > 0 && (
-            <div className="flex flex-col gap-1">
-              <p className="text-muted-foreground px-2 text-xs font-semibold tracking-wider uppercase">
-                Recent Chats
-              </p>
-              {chats.map((chat) => {
-                const isChatActive = currentChatId === chat.id;
-                return (
-                  <Link
-                    key={chat.id}
-                    href={`/chat/${encodeURIComponent(chat.id)}`}
-                  >
-                    <Button
-                      variant="ghost"
-                      className={cn(
-                        "h-auto w-full cursor-pointer justify-start gap-3 py-2 transition-all duration-150 ease-linear",
-                        isChatActive
-                          ? "bg-background text-foreground hover:bg-background/50 hover:text-background shadow-lg hover:shadow-none"
-                          : "text-muted-foreground hover:bg-background/50 hover:text-foreground"
-                      )}
-                    >
-                      <MessageSquare className="h-4 w-4 shrink-0" />
-                      <span className="truncate text-left text-sm">
-                        {chat.title || "Untitled Chat"}
-                      </span>
-                    </Button>
-                  </Link>
-                );
-              })}
-            </div>
-          )}
-        </div>
-        <div className="border-border border-t p-4">
-          <Link href={"/settings"}>
-            <Button
-              variant="ghost"
-              className={cn(
-                "cursor-pointer justify-start gap-3 transition-all duration-150 ease-linear",
-                pathname === "/settings"
-                  ? "bg-background text-foreground hover:bg-background/50 hover:text-background w-full shadow-lg hover:shadow-none"
-                  : "text-muted-foreground hover:bg-background/50 hover:text-foreground w-full"
-              )}
-            >
-              <Settings className="h-5 w-5" /> Settings
-            </Button>
-          </Link>
-
-          <div className="mt-4 mb-4 flex items-center gap-3 px-2">
-            <div className="bg-foreground text-background flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold uppercase shadow-lg">
-              {user?.name?.[0] || "U"}
-            </div>
-            <div className="flex-1 overflow-hidden">
-              <p className="text-foreground truncate text-sm font-medium">
-                {user?.name || "User"}
-              </p>
-              <p className="text-muted-foreground truncate text-xs">
-                {user?.email}
-              </p>
-            </div>
+    <Sidebar className="w-56">
+      <SidebarHeader className="border-b">
+        <div className="flex items-center justify-between p-2">
+          <div className="flex items-center gap-2">
+            <Image src="/logo.png" alt="Kakcil Logo" width={24} height={24} className="shrink-0" />
+            <span className="font-bold">KAKCIL</span>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => logout()}
-            className="border-border text-foreground hover:border-destructive hover:bg-destructive hover:text-destructive-foreground w-full transition-colors"
-          >
-            <LogOut className="mr-2 h-4 w-4" />
-            Sign Out
-          </Button>
+          {isMobile && (
+            <Button variant="ghost" size="icon" onClick={() => setOpenMobile(false)} className="h-7 w-7">
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+          {!isMobile && <SidebarTrigger className="h-7 w-7" />}
         </div>
-      </div>
-    </aside>
+      </SidebarHeader>
+
+      <SidebarContent>
+        <SidebarGroup>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton onClick={handleNewChat} isActive={pathname === "/chat" && !currentChatId} tooltip="New Chat">
+                <Plus className="h-4 w-4" />
+                <span>New Chat</span>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarGroup>
+        <SidebarSeparator />
+        <SidebarGroup>
+          <SidebarGroupLabel>Recent Chats</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {isLoading && (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                </div>
+              )}
+              {error && <p className="px-2 text-xs text-muted-foreground">Failed to load chats</p>}
+              {!isLoading && !error && chats.length === 0 && (
+                <p className="px-2 text-xs text-muted-foreground">No chats yet</p>
+              )}
+              {!isLoading && !error && chats.map((chat) => (
+                <SidebarMenuItem key={chat.id}>
+                  <SidebarMenuButton asChild isActive={currentChatId === chat.id} tooltip={chat.title || "Untitled Chat"} onClick={handleNavigation}>
+                    <Link href={`/chat/${encodeURIComponent(chat.id)}`}>
+                      <MessageSquare className="h-4 w-4" />
+                      <span className="truncate">{chat.title || "Untitled Chat"}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
+
+      <SidebarFooter className="border-t">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive={pathname === "/settings"} tooltip="Settings" onClick={handleNavigation}>
+              <Link href="/settings">
+                <Settings className="h-4 w-4" />
+                <span>Settings</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+        <div className="mt-2 flex items-center gap-2 rounded-md bg-sidebar-accent/50 p-2">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+            {user?.name?.[0] || "U"}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-xs font-medium">{user?.name || "User"}</p>
+            <p className="truncate text-[10px] text-muted-foreground">{user?.email}</p>
+          </div>
+        </div>
+        <Button variant="ghost" size="sm" onClick={() => logout()} className="mt-2 w-full justify-start gap-2">
+          <LogOut className="h-4 w-4" />
+          <span>Sign Out</span>
+        </Button>
+      </SidebarFooter>
+    </Sidebar>
   );
 }

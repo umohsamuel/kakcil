@@ -1,22 +1,16 @@
 "use client";
-
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Loader2, Check, Sparkles, Bot } from "lucide-react";
-
 const AI_MODELS = [{ name: "Gemini" }, { name: "GPT-4o" }, { name: "Claude" }];
-
 interface CouncilDebateModalProps {
   isOpen: boolean;
 }
-
 type Stage = "gathering" | "voting" | "finalizing";
-
 export function CouncilDebateModal({ isOpen }: CouncilDebateModalProps) {
   const [stage, setStage] = useState<Stage>("gathering");
   const [gatheredModels, setGatheredModels] = useState<number[]>([]);
   const [votedModels, setVotedModels] = useState<number[]>([]);
-
   useEffect(() => {
     if (!isOpen) {
       setStage("gathering");
@@ -24,8 +18,6 @@ export function CouncilDebateModal({ isOpen }: CouncilDebateModalProps) {
       setVotedModels([]);
       return;
     }
-
-    // Stage 1: Gathering responses (staggered)
     AI_MODELS.forEach((_, index) => {
       setTimeout(
         () => {
@@ -34,14 +26,10 @@ export function CouncilDebateModal({ isOpen }: CouncilDebateModalProps) {
         500 + index * 400
       );
     });
-
-    // Stage 2: Move to vote after all gathered
     setTimeout(
       () => {
         setStage("voting");
         setVotedModels([]);
-
-        // Stagger the votes
         AI_MODELS.forEach((_, index) => {
           setTimeout(
             () => {
@@ -53,8 +41,6 @@ export function CouncilDebateModal({ isOpen }: CouncilDebateModalProps) {
       },
       500 + AI_MODELS.length * 400 + 500
     );
-
-    // Stage 3: Move to finalizing after all voted
     setTimeout(
       () => {
         setStage("finalizing");
@@ -62,24 +48,20 @@ export function CouncilDebateModal({ isOpen }: CouncilDebateModalProps) {
       500 + AI_MODELS.length * 400 + 500 + 500 + AI_MODELS.length * 400 + 300
     );
   }, [isOpen]);
-
   const stageTitle = {
     gathering: "Gathering Responses",
     voting: "Council Voting",
     finalizing: "Finalizing Response",
   }[stage];
-
   const stageDescription = {
     gathering: "Models generating answers",
     voting: "Evaluating quality",
     finalizing: "Preparing final answer",
   }[stage];
-
   return (
     <Dialog open={isOpen}>
       <DialogContent className="border-2 border-black/10 bg-white sm:max-w-md [&>button]:hidden">
         <DialogTitle className="sr-only">{stageTitle}</DialogTitle>
-
         <div className="space-y-6 py-6">
           {/* Header */}
           <div className="space-y-2 text-center">
@@ -93,7 +75,6 @@ export function CouncilDebateModal({ isOpen }: CouncilDebateModalProps) {
             <h3 className="text-xl font-bold text-black">{stageTitle}</h3>
             <p className="text-sm text-gray-500">{stageDescription}</p>
           </div>
-
           {/* Models */}
           {stage !== "finalizing" && (
             <div className="space-y-3">
@@ -104,12 +85,10 @@ export function CouncilDebateModal({ isOpen }: CouncilDebateModalProps) {
                 const hasVoted = votedModels.includes(index);
                 const isVoting =
                   stage === "voting" && votedModels.length === index;
-
                 const isActive = isGathering || isVoting;
                 const isComplete =
                   (stage === "gathering" && hasGathered) ||
                   (stage === "voting" && hasVoted);
-
                 return (
                   <div
                     key={model.name}
@@ -131,7 +110,6 @@ export function CouncilDebateModal({ isOpen }: CouncilDebateModalProps) {
                         {model.name}
                       </span>
                     </div>
-
                     <div className="flex items-center gap-2">
                       {isActive && (
                         <Loader2 className="h-5 w-5 animate-spin text-black" />
@@ -147,7 +125,6 @@ export function CouncilDebateModal({ isOpen }: CouncilDebateModalProps) {
               })}
             </div>
           )}
-
           {/* Finalizing stage - just spinner */}
           {stage === "finalizing" && (
             <div className="flex justify-center py-8">

@@ -1,5 +1,4 @@
 "use client";
-
 import { useCallback } from "react";
 import ReactFlow, {
   Background,
@@ -14,19 +13,18 @@ import ReactFlow, {
   NodeTypes,
 } from "reactflow";
 import "reactflow/dist/style.css";
-
 import { UserPromptNode } from "@/components/nodes/user-prompt-node";
 import { ModelResponseNode } from "@/components/nodes/model-response-node";
 import { FinalAnswerNode } from "@/components/nodes/final-answer-node";
 import { ContinuationNode } from "@/components/nodes/continuation-node";
-
+import { BranchNode } from "@/components/nodes/branch-node";
 const nodeTypes: NodeTypes = {
   userPrompt: UserPromptNode,
   modelResponse: ModelResponseNode,
   finalAnswer: FinalAnswerNode,
   continuation: ContinuationNode,
+  branch: BranchNode,
 };
-
 interface FlowCanvasProps {
   nodes: Node[];
   edges: Edge[];
@@ -34,7 +32,6 @@ interface FlowCanvasProps {
   onEdgesChange: OnEdgesChange;
   onNodeClick: (event: React.MouseEvent, node: Node) => void;
 }
-
 export function FlowCanvas({
   nodes,
   edges,

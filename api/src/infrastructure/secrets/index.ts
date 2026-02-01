@@ -53,7 +53,7 @@ export default class Secrets {
     this.port = parseInt(process.env.SERVER_PORT || "8080");
     this.clientOrigin = this.getEnvironmentVariableOrFallback(
       "CLIENT_ORIGIN",
-      "localhost:3000",
+      "http://localhost:3000",
     );
     this.cookieExpires = this.getEnvironmentVariableAsNumber(
       "COOKIE_EXPIRES",

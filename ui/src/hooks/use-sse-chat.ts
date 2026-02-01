@@ -100,7 +100,7 @@ export function useFlowSSEChat(initialChatId?: string, options?: UseFlowSSEChatO
   );
 
   const startStreaming = useCallback(
-    async (message: string, existingChatId?: string) => {
+    async (message: string, existingChatId?: string, branchId?: string) => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
@@ -153,6 +153,7 @@ export function useFlowSSEChat(initialChatId?: string, options?: UseFlowSSEChatO
         modelNodes: [], // Reset model nodes for new round
         userMessage: message,
         isStreaming: true,
+        error: undefined, // Clear any previous error
         conversationRound: currentRound,
         rounds: newRounds,
       }));
@@ -161,7 +162,7 @@ export function useFlowSSEChat(initialChatId?: string, options?: UseFlowSSEChatO
       const chatIdToUse = existingChatId || flowState.chatId;
       const endpoint = chatIdToUse ? "/api/v1/chats" : "/api/v1/chats/new";
       const body = chatIdToUse
-        ? { message, chat_id: chatIdToUse }
+        ? { message, chat_id: chatIdToUse, branch_id: branchId }
         : { message };
 
       try {
@@ -447,7 +448,9 @@ export function useFlowSSEChat(initialChatId?: string, options?: UseFlowSSEChatO
       branchId: string,
       model: string,
       response: string,
-      parentPrompt?: string
+      parentPrompt?: string,
+      branchName?: string,
+      branchMessage?: string // The message that starts the branch
     ) => {
       setFlowState((prev) => {
         // Find the source model node to get its position
@@ -456,44 +459,89 @@ export function useFlowSSEChat(initialChatId?: string, options?: UseFlowSSEChatO
 
         const round = getRoundFromNodeId(sourceModelNodeId);
         
-        // Position branch directly under the source node (not offset to side)
-        // Small horizontal offset only to avoid exact overlap
+        // Count existing branches from this node to offset vertically
+        const existingBranches = prev.branchPoints.filter(bp => 
+          bp.nodeId.includes(`from-${sourceModelNodeId}`)
+        ).length;
+        
+        // Position branch to the RIGHT of the source node
         const branchNodeId = `branch-${branchId}-from-${sourceModelNodeId}`;
         const branchNodePosition = {
-          x: sourceNode.position.x,
-          y: sourceNode.position.y + 120, // Directly below with arrow connecting
+          x: sourceNode.position.x + 280, // 280px to the right
+          y: sourceNode.position.y + (existingBranches * 150), // Stack vertically if multiple
         };
 
+        // Create the branch indicator node
         const branchNode: Node = {
           id: branchNodeId,
-          type: "modelResponse",
+          type: "branch",
           position: branchNodePosition,
           data: {
-            model: model,
-            status: "winner",
-            hasResponse: true,
-            isBranchPoint: true,
-            parentPrompt: parentPrompt, // Store parent context for sidebar display
-            parentResponse: response,
+            branchId,
+            branchName: branchName || `${model} Branch`,
+            model,
+            parentPrompt,
+            isClickable: true,
           },
         };
 
-        // Create edge from source model to branch node with visible arrow
+        // Create edge from source model's right handle to branch node's left handle
         const branchEdge: Edge = {
           id: `edge-branch-${sourceModelNodeId}-to-${branchNodeId}`,
           source: sourceModelNodeId,
+          sourceHandle: "branch", // ModelResponseNode right handle id
           target: branchNodeId,
+          targetHandle: "left", // BranchNode left handle id
           type: "smoothstep",
-          animated: false, // Solid line, not animated
+          animated: true,
           style: {
-            stroke: "#8b5cf6", // Purple for branches
+            stroke: "#8b5cf6",
             strokeWidth: 3,
+            strokeDasharray: "5,5",
           },
           markerEnd: {
             type: MarkerType.ArrowClosed,
             color: "#8b5cf6",
             width: 20,
             height: 20,
+          },
+        };
+
+        // Create the user prompt node for the branch (connected below the branch node)
+        const userPromptNodeId = `branch-prompt-${branchId}`;
+        const userPromptPosition = {
+          x: branchNodePosition.x,
+          y: branchNodePosition.y + 120, // Below the branch node
+        };
+
+        const userPromptNode: Node = {
+          id: userPromptNodeId,
+          type: "userPrompt",
+          position: userPromptPosition,
+          data: {
+            message: branchMessage || "Continue from this response",
+            isBranchStart: true,
+          },
+        };
+
+        // Edge from branch node to user prompt node
+        const branchToPromptEdge: Edge = {
+          id: `edge-${branchNodeId}-to-${userPromptNodeId}`,
+          source: branchNodeId,
+          sourceHandle: "bottom", // BranchNode bottom handle id
+          target: userPromptNodeId,
+          targetHandle: "top", // UserPromptNode top handle id
+          type: "smoothstep",
+          animated: false,
+          style: {
+            stroke: "#8b5cf6",
+            strokeWidth: 2,
+          },
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            color: "#8b5cf6",
+            width: 16,
+            height: 16,
           },
         };
 
@@ -510,8 +558,8 @@ export function useFlowSSEChat(initialChatId?: string, options?: UseFlowSSEChatO
 
         return {
           ...prev,
-          nodes: [...prev.nodes, branchNode],
-          edges: [...prev.edges, branchEdge],
+          nodes: [...prev.nodes, branchNode, userPromptNode],
+          edges: [...prev.edges, branchEdge, branchToPromptEdge],
           branchPoints: [...prev.branchPoints, newBranchPoint],
         };
       });
@@ -679,6 +727,7 @@ export function useFlowSSEChat(initialChatId?: string, options?: UseFlowSSEChatO
   );
 
   // Initialize flow state from historical messages
+  // parentContext is used when viewing a branch - shows the parent message/response that started the branch
   const initializeFromMessages = useCallback(
     (messages: { 
       id: string; 
@@ -691,13 +740,124 @@ export function useFlowSSEChat(initialChatId?: string, options?: UseFlowSSEChatO
         is_winner: boolean;
         votes_received?: number;
       }>;
-    }[], chatId: string) => {
+    }[], chatId: string, parentContext?: {
+      parentMessage?: { id: string; content: string };
+      parentResponse?: { id: string; model: string; content: string };
+    }) => {
       const { nodes, edges, rounds } = buildFlowFromMessages(messages);
       
-      if (nodes.length > 0) {
+      // If we have parent context (viewing a branch), prepend parent nodes
+      let finalNodes = nodes;
+      let finalEdges = edges;
+      
+      if (parentContext?.parentMessage && parentContext?.parentResponse) {
+        // Create parent message node (positioned before the first branch node)
+        const parentPromptNode: Node = {
+          id: `parent-prompt-${parentContext.parentMessage.id}`,
+          type: "userPrompt",
+          position: { x: 0, y: -300 }, // Above the branch's first message
+          data: {
+            message: parentContext.parentMessage.content,
+          },
+        };
+
+        // Create parent response node (the model response that was branched from)
+        const parentResponseNode: Node = {
+          id: `parent-response-${parentContext.parentResponse.id}`,
+          type: "modelResponse",
+          position: { x: 0, y: -180 },
+          data: {
+            model: parentContext.parentResponse.model,
+            status: "completed",
+            hasResponse: true,
+            isBranchPoint: true,
+          },
+        };
+
+        // Create branch indicator node
+        const branchIndicatorNode: Node = {
+          id: `branch-indicator`,
+          type: "branch",
+          position: { x: 280, y: -180 },
+          data: {
+            branchId: chatId,
+            branchName: `${parentContext.parentResponse.model} Branch`,
+            model: parentContext.parentResponse.model,
+            parentPrompt: parentContext.parentMessage.content,
+            isClickable: false, // Already viewing this branch
+          },
+        };
+
+        // Edge from parent prompt to parent response
+        const parentToResponseEdge: Edge = {
+          id: `edge-parent-to-response`,
+          source: parentPromptNode.id,
+          sourceHandle: "bottom",
+          target: parentResponseNode.id,
+          type: "smoothstep",
+          style: { stroke: "#94a3b8", strokeWidth: 2 },
+        };
+
+        // Edge from parent response to branch indicator
+        const responseToBranchEdge: Edge = {
+          id: `edge-response-to-branch`,
+          source: parentResponseNode.id,
+          sourceHandle: "branch",
+          target: branchIndicatorNode.id,
+          targetHandle: "left",
+          type: "smoothstep",
+          animated: true,
+          style: {
+            stroke: "#8b5cf6",
+            strokeWidth: 3,
+            strokeDasharray: "5,5",
+          },
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            color: "#8b5cf6",
+            width: 20,
+            height: 20,
+          },
+        };
+
+        // Edge from branch indicator to first branch message (if exists)
+        const firstBranchNode = nodes[0];
+        let branchToFirstEdge: Edge | null = null;
+        if (firstBranchNode) {
+          branchToFirstEdge = {
+            id: `edge-branch-to-first`,
+            source: branchIndicatorNode.id,
+            sourceHandle: "bottom",
+            target: firstBranchNode.id,
+            targetHandle: "top",
+            type: "smoothstep",
+            style: {
+              stroke: "#8b5cf6",
+              strokeWidth: 2,
+            },
+            markerEnd: {
+              type: MarkerType.ArrowClosed,
+              color: "#8b5cf6",
+              width: 16,
+              height: 16,
+            },
+          };
+        }
+
+        // Prepend parent nodes and edges
+        finalNodes = [parentPromptNode, parentResponseNode, branchIndicatorNode, ...nodes];
+        finalEdges = [
+          parentToResponseEdge, 
+          responseToBranchEdge, 
+          ...(branchToFirstEdge ? [branchToFirstEdge] : []),
+          ...edges
+        ];
+      }
+      
+      if (finalNodes.length > 0) {
         setFlowState({
-          nodes,
-          edges,
+          nodes: finalNodes,
+          edges: finalEdges,
           modelNodes: rounds[rounds.length - 1]?.modelNodes || [],
           userMessage: rounds[rounds.length - 1]?.prompt || "",
           finalResponse: rounds[rounds.length - 1]?.finalResponse,

@@ -83,22 +83,63 @@ export class SSEService {
               let eventData: any;
               
               if (dataStr.startsWith("LLM Responses ")) {
-                eventData = JSON.parse(dataStr.substring(14));
+                const jsonStr = dataStr.substring(14);
+                eventData = JSON.parse(jsonStr);
+                
+                // Check for null/empty response (models unavailable)
+                if (eventData === null || eventData === undefined) {
+                  handlers.onError?.({ 
+                    error: "No response from models. Please check your API keys and model availability.",
+                    code: "MODELS_UNAVAILABLE"
+                  });
+                  return;
+                }
                 handlers.onLLMResponse?.(eventData);
               } else if (dataStr.startsWith("LLM Vote Scores ")) {
-                eventData = JSON.parse(dataStr.substring(16));
+                const jsonStr = dataStr.substring(16);
+                eventData = JSON.parse(jsonStr);
+                
+                // Check for null vote scores
+                if (eventData === null || eventData === undefined) {
+                  handlers.onError?.({ 
+                    error: "Voting failed. Models may not be available.",
+                    code: "VOTE_FAILED"
+                  });
+                  return;
+                }
                 handlers.onLLMVote?.(eventData);
               } else if (dataStr.startsWith("Vote Response ")) {
-                eventData = JSON.parse(dataStr.substring(14));
+                const jsonStr = dataStr.substring(14);
+                eventData = JSON.parse(jsonStr);
+                
+                // Check for null vote response
+                if (eventData === null || eventData === undefined) {
+                  handlers.onError?.({ 
+                    error: "Could not determine the best response. Please try again.",
+                    code: "VOTE_RESPONSE_FAILED"
+                  });
+                  return;
+                }
                 handlers.onVoteResponse?.(eventData);
               } else if (dataStr.startsWith("Chat ID ")) {
                 eventData = JSON.parse(dataStr.substring(8));
                 handlers.onChatId?.(eventData);
+              } else if (dataStr === "null" || dataStr === "undefined" || dataStr.trim() === "") {
+                // Backend returned null directly
+                handlers.onError?.({ 
+                  error: "No response received from the council. Models may be unavailable.",
+                  code: "NULL_RESPONSE"
+                });
               } else {
                 // Try to parse as JSON directly (for errors)
                 try {
                   eventData = JSON.parse(dataStr);
-                  if (eventData.error) {
+                  if (eventData === null) {
+                    handlers.onError?.({ 
+                      error: "No response received. Please check model configuration.",
+                      code: "NULL_RESPONSE"
+                    });
+                  } else if (eventData.error) {
                     handlers.onError?.(eventData);
                   }
                 } catch {
@@ -107,6 +148,13 @@ export class SSEService {
               }
             } catch (error) {
               console.error("Error parsing SSE data:", error, dataStr);
+              // If parsing fails, it might be due to null/invalid data
+              if (dataStr === "null" || dataStr.includes("null")) {
+                handlers.onError?.({ 
+                  error: "Invalid response from server. Models may not be available.",
+                  code: "PARSE_ERROR"
+                });
+              }
             }
           }
         }

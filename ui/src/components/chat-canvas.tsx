@@ -1,32 +1,26 @@
 "use client";
-
 import { ConversationState, ModelNode } from "@/types/chat";
 import { ModelNodeComponent } from "@/components/model-node";
 import { ConversationModal } from "@/components/conversation-modal";
 import { FinalAnswerPanel } from "@/components/final-answer-panel";
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
-
 interface ChatCanvasProps {
   conversationState: ConversationState;
 }
-
 export function ChatCanvas({ conversationState }: ChatCanvasProps) {
   const [selectedNode, setSelectedNode] = useState<ModelNode | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-
   const handleNodeClick = (node: ModelNode) => {
     if (node.response) {
       setSelectedNode(node);
       setIsModalOpen(true);
     }
   };
-
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setSelectedNode(null);
   };
-
   return (
     <div className="flex h-full flex-col gap-6 p-6">
       {/* Canvas Area */}
@@ -44,7 +38,6 @@ export function ChatCanvas({ conversationState }: ChatCanvasProps) {
             </div>
           </div>
         )}
-
         {/* Model Nodes */}
         {conversationState.modelNodes.map((node, index) => (
           <ModelNodeComponent
@@ -55,7 +48,6 @@ export function ChatCanvas({ conversationState }: ChatCanvasProps) {
             total={conversationState.modelNodes.length}
           />
         ))}
-
         {/* Loading state */}
         {conversationState.modelNodes.length === 0 &&
           conversationState.isStreaming && (
@@ -69,12 +61,10 @@ export function ChatCanvas({ conversationState }: ChatCanvasProps) {
             </div>
           )}
       </Card>
-
       {/* Final Answer Panel */}
       {conversationState.finalResponse && (
         <FinalAnswerPanel finalResponse={conversationState.finalResponse} />
       )}
-
       {/* Error Display */}
       {conversationState.error && (
         <Card className="border-2 border-red-500 bg-red-50 p-4 dark:bg-red-950/20">
@@ -83,7 +73,6 @@ export function ChatCanvas({ conversationState }: ChatCanvasProps) {
           </p>
         </Card>
       )}
-
       {/* Conversation Modal */}
       <ConversationModal
         isOpen={isModalOpen}

@@ -1,5 +1,4 @@
 "use client";
-
 import { VoteResponseEvent } from "@/types/chat";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MarkdownMessage } from "@/components/markdown-message";
@@ -7,21 +6,17 @@ import { Button } from "@/components/ui/button";
 import { Copy, Check, Crown } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-
 interface FinalAnswerPanelProps {
   finalResponse: VoteResponseEvent;
 }
-
 export function FinalAnswerPanel({ finalResponse }: FinalAnswerPanelProps) {
   const [copied, setCopied] = useState(false);
-
   const handleCopy = async () => {
     await navigator.clipboard.writeText(finalResponse.response);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
     toast.success("Copied to clipboard");
   };
-
   return (
     <Card className="border-2 border-yellow-500/50 bg-gradient-to-br from-yellow-50 to-amber-50 dark:from-yellow-950/20 dark:to-amber-950/20 shadow-xl">
       <CardHeader>
@@ -37,7 +32,6 @@ export function FinalAnswerPanel({ finalResponse }: FinalAnswerPanelProps) {
         <div className="rounded-lg bg-white dark:bg-gray-900 p-4 font-mono text-base">
           <MarkdownMessage content={finalResponse.response} />
         </div>
-        
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
             <span className="font-semibold">Topic:</span> {finalResponse.topic}

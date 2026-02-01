@@ -28,6 +28,8 @@ export default class ChatHandler {
     // this.router.post("/stream", this.streamMessage);
     this.router.get("/", this.getChats);
     this.router.get("/:id/messages", this.getMessages);
+    this.router.get("/:id/branches", this.getChatBranches);
+    this.router.get("/branch/:branchId", this.getBranchWithParentContext);
   }
 
   private getChats = async (req: Request, res: Response) => {
@@ -386,4 +388,65 @@ export default class ChatHandler {
 
     return { branch, assistantMessage, userMessage };
   }
+
+  private getChatBranches = async (req: Request, res: Response) => {
+    const { id } = req.params;
+
+    if (!id) {
+      throw new BadRequestError("Chat ID is required");
+    }
+
+    const branches = await this.adapter.chatBranchAdapter.getChatBranchesByChatId(id);
+
+    return new SuccessResponse(res, branches).send();
+  };
+
+  private getBranchWithParentContext = async (req: Request, res: Response) => {
+    const { branchId } = req.params;
+
+    if (!branchId) {
+      throw new BadRequestError("Branch ID is required");
+    }
+
+    // Get the branch info
+    const branch = await this.adapter.chatBranchAdapter.getChatBranchById(branchId);
+
+    if (!branch) {
+      throw new BadRequestError("Branch not found");
+    }
+
+    let parentMessage = null;
+    let parentResponse = null;
+
+    // If this branch was created from a message, fetch that message
+    if (branch.branched_from_message_id) {
+      const messages = await this.services.chatService.chatRepository.getRecentMessages(
+        branch.chat_id,
+        null,
+        100
+      );
+      parentMessage = messages?.find(m => m.id === branch.branched_from_message_id);
+    }
+
+    // If this branch was created from a council response, fetch that response
+    if (branch.branched_from_response_id) {
+      parentResponse = await this.adapter.councilResponseAdapter.findById(
+        branch.branched_from_response_id
+      );
+    }
+
+    return new SuccessResponse(res, {
+      branch,
+      parentMessage: parentMessage ? {
+        id: parentMessage.id,
+        content: parentMessage.content,
+        role: parentMessage.role,
+      } : null,
+      parentResponse: parentResponse ? {
+        id: parentResponse.id,
+        model: parentResponse.model,
+        content: parentResponse.content,
+      } : null,
+    }).send();
+  };
 }

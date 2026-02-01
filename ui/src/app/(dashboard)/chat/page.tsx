@@ -1,5 +1,4 @@
 "use client";
-
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ProtectedRoute } from "@/components/protected-route";
@@ -9,21 +8,17 @@ import { FlowCanvas } from "@/components/flow-canvas";
 import { MarkdownMessage } from "@/components/markdown-message";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { LogOut, Send, X, Copy, Check, Loader2 } from "lucide-react";
+import { LogOut, Send, X, Copy, Check, Loader2, AlertTriangle, RefreshCw, PanelRightOpen, PanelRightClose } from "lucide-react";
 import Image from "next/image";
 import { toast } from "sonner";
 import { Node } from "reactflow";
 import { queryKeys } from "@/lib/query-keys";
-
 function ChatPageContent() {
   const { user, logout } = useAuth();
   const queryClient = useQueryClient();
-
-  // Callback to invalidate chats when new chat is created
   const handleNewChatCreated = useCallback((chatId: string) => {
     queryClient.invalidateQueries({ queryKey: queryKeys.chat.list() });
   }, [queryClient]);
-
   const {
     flowState,
     onNodesChange,
@@ -34,67 +29,70 @@ function ChatPageContent() {
   const [input, setInput] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [mobileShowSidebar, setMobileShowSidebar] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
       textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
     }
   }, [input]);
-
-  // Open sidebar when streaming starts
   useEffect(() => {
     if (flowState.isStreaming) {
       setSidebarOpen(true);
     }
   }, [flowState.isStreaming]);
-
+  useEffect(() => {
+    if (flowState.error) {
+      toast.error(flowState.error, {
+        duration: 5000,
+        action: {
+          label: "Retry",
+          onClick: () => handleRetry(),
+        },
+      });
+    }
+  }, [flowState.error]);
+  const handleRetry = () => {
+    if (flowState.userMessage) {
+      startStreaming(flowState.userMessage, flowState.chatId);
+    }
+  };
   const handleStartChat = async () => {
     if (!input.trim() || flowState.isStreaming) return;
-
     const message = input.trim();
     setInput("");
     setSidebarOpen(true);
-
     try {
       await startStreaming(message, flowState.chatId);
     } catch (error) {
       toast.error("Sorry, there was an error starting the chat.");
     }
   };
-
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleStartChat();
     }
   };
-
   const handleNodeClick = (event: React.MouseEvent, node: Node) => {
     if (node.type === "modelResponse" || node.type === "finalAnswer" || node.type === "userPrompt") {
       setSelectedNodeId(node.id);
       setSidebarOpen(true);
     }
   };
-
   const handleCopy = async (text: string, id: string) => {
     await navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
     toast.success("Copied to clipboard");
   };
-
-  // Get context for the selected node based on its round
   const getSelectedContext = () => {
     if (!selectedNodeId) return null;
-    
     const round = getRoundFromNodeId(selectedNodeId);
     const roundData = flowState.rounds[round];
-    
     if (!roundData) {
-      // Fallback to current round data
       return {
         prompt: flowState.userMessage,
         modelNodes: flowState.modelNodes,
@@ -102,11 +100,8 @@ function ChatPageContent() {
         round: flowState.conversationRound,
       };
     }
-
     return { ...roundData, round };
   };
-
-  // Get the specific model from the selected node
   const getModelFromNodeId = (nodeId: string | null): string | null => {
     if (!nodeId) return null;
     if (nodeId.startsWith("model-")) {
@@ -115,21 +110,16 @@ function ChatPageContent() {
     }
     return null;
   };
-
   const selectedContext = getSelectedContext();
   const selectedModel = getModelFromNodeId(selectedNodeId);
   const selectedModelNode = selectedModel && selectedContext
     ? selectedContext.modelNodes.find((n) => n.model === selectedModel)
     : null;
   const isFinalAnswerSelected = selectedNodeId?.startsWith("final-");
-
   const showCanvas = flowState.nodes.length > 0;
   const showInitialInput = !showCanvas && !sidebarOpen;
-
-  // Get display content for sidebar
   const getSidebarContent = () => {
     if (!selectedContext) return null;
-
     if (selectedModel && selectedModelNode) {
       return {
         title: selectedModelNode.model,
@@ -138,7 +128,6 @@ function ChatPageContent() {
         response: selectedModelNode.response,
       };
     }
-
     if (isFinalAnswerSelected && selectedContext.finalResponse) {
       return {
         title: `Final Answer (${selectedContext.finalResponse.model})`,
@@ -147,7 +136,6 @@ function ChatPageContent() {
         response: selectedContext.finalResponse.response,
       };
     }
-
     if (selectedNodeId?.startsWith("prompt-")) {
       return {
         title: "Your Question",
@@ -156,12 +144,9 @@ function ChatPageContent() {
         response: null,
       };
     }
-
     return null;
   };
-
   const sidebarContent = getSidebarContent();
-
   return (
     <div className="flex h-full w-full">
       {/* Main Content Area */}
@@ -177,7 +162,6 @@ function ChatPageContent() {
               <LogOut className="h-5 w-5" />
             </Button>
           </header>
-
           {showInitialInput && (
             <div className="flex flex-1 flex-col">
               <div className="flex flex-1 flex-col items-center justify-center space-y-4 p-8 text-center">
@@ -196,7 +180,6 @@ function ChatPageContent() {
                   with the best answer.
                 </p>
               </div>
-
               <div className="bg-background border-foreground/10 border-t p-4 md:p-6">
                 <div className="relative mx-auto max-w-3xl">
                   <div className="border-background/10 bg-foreground focus-within:border-background/30 flex items-center gap-2 rounded-2xl border-2 p-2 transition-colors">
@@ -223,9 +206,8 @@ function ChatPageContent() {
               </div>
             </div>
           )}
-
           {showCanvas && (
-            <div className="h-full flex-1">
+            <div className={`h-full flex-1 ${mobileShowSidebar && sidebarOpen ? 'hidden md:block' : ''}`}>
               <FlowCanvas
                 nodes={flowState.nodes}
                 edges={flowState.edges}
@@ -233,14 +215,23 @@ function ChatPageContent() {
                 onEdgesChange={onEdgesChange}
                 onNodeClick={handleNodeClick}
               />
+              {/* Mobile toggle button to show sidebar when a node is selected */}
+              {sidebarOpen && !mobileShowSidebar && (
+                <button
+                  onClick={() => setMobileShowSidebar(true)}
+                  className="absolute bottom-4 right-4 z-10 flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-primary-foreground shadow-lg md:hidden"
+                >
+                  <PanelRightOpen className="h-4 w-4" />
+                  <span className="text-sm font-medium">View Details</span>
+                </button>
+              )}
             </div>
           )}
         </main>
       </div>
-
-      {/* Right Sidebar */}
+      {/* Right Sidebar - fullscreen on mobile when open */}
       {sidebarOpen && (
-        <div className="flex h-full w-[450px] flex-col border-l border-gray-300 bg-white dark:border-gray-700 dark:bg-gray-900">
+        <div className={`flex h-full flex-col border-l border-gray-300 bg-white dark:border-gray-700 dark:bg-gray-900 ${mobileShowSidebar ? 'fixed inset-0 z-50 w-full md:relative md:w-[450px]' : 'hidden md:flex md:w-[450px]'}`}>
           <div className="flex items-center justify-between border-b border-gray-300 p-4 dark:border-gray-700">
             <div className="flex items-center gap-2">
               <span className="font-mono text-sm font-bold uppercase tracking-wide text-gray-900 dark:text-gray-100">
@@ -255,18 +246,30 @@ function ChatPageContent() {
                 <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
               )}
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => {
-                setSidebarOpen(false);
-                setSelectedNodeId(null);
-              }}
-            >
-              <X className="h-5 w-5" />
-            </Button>
+            <div className="flex items-center gap-2">
+              {/* Mobile back button */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setMobileShowSidebar(false)}
+                className="md:hidden"
+              >
+                <PanelRightClose className="h-5 w-5" />
+              </Button>
+              {/* Close button */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  setSidebarOpen(false);
+                  setSelectedNodeId(null);
+                  setMobileShowSidebar(false);
+                }}
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
           </div>
-
           <div className="flex-1 overflow-y-auto p-4">
             <div className="space-y-6">
               {/* Round indicator */}
@@ -275,7 +278,6 @@ function ChatPageContent() {
                   Round {selectedContext.round + 1}
                 </div>
               )}
-
               {/* User Message */}
               {sidebarContent?.prompt && (
                 <div className="flex items-start justify-end gap-3">
@@ -286,7 +288,6 @@ function ChatPageContent() {
                   </div>
                 </div>
               )}
-
               {/* Response */}
               {sidebarContent?.response && (
                 <div className="group w-full">
@@ -315,7 +316,6 @@ function ChatPageContent() {
                   )}
                 </div>
               )}
-
               {/* Loading indicator */}
               {flowState.isStreaming && !sidebarContent?.response && (
                 <div className="flex items-center gap-2 text-gray-500">
@@ -323,9 +323,39 @@ function ChatPageContent() {
                   <span className="text-sm">Council is deliberating...</span>
                 </div>
               )}
+              {/* Error Display */}
+              {flowState.error && (
+                <div className="rounded-xl border-2 border-red-500/50 bg-red-50 p-4 dark:bg-red-950/20">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="h-5 w-5 shrink-0 text-red-500" />
+                    <div className="flex-1 space-y-2">
+                      <p className="text-sm font-medium text-red-600 dark:text-red-400">
+                        {flowState.error}
+                      </p>
+                      <p className="text-xs text-red-500/80 dark:text-red-400/80">
+                        This could be due to:
+                      </p>
+                      <ul className="list-inside list-disc text-xs text-red-500/80 dark:text-red-400/80">
+                        <li>Models not being available</li>
+                        <li>API key issues</li>
+                        <li>Network connectivity problems</li>
+                      </ul>
+                      <Button
+                        onClick={handleRetry}
+                        variant="outline"
+                        size="sm"
+                        className="mt-2 border-red-500/50 text-red-600 hover:bg-red-100 dark:hover:bg-red-950/50"
+                        disabled={flowState.isStreaming}
+                      >
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Try Again
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-
           {/* Input in sidebar */}
           <div className="border-t border-gray-300 p-4 dark:border-gray-700">
             <div className="flex items-end gap-2 rounded-2xl border-2 border-gray-900 bg-gray-900 p-2 focus-within:border-gray-700 dark:border-gray-100 dark:bg-gray-100">
@@ -353,7 +383,6 @@ function ChatPageContent() {
     </div>
   );
 }
-
 export default function ChatPage() {
   return (
     <ProtectedRoute>

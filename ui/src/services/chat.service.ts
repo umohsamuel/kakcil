@@ -82,6 +82,46 @@ export class ChatService {
     );
     return response.data;
   }
+
+  // Get all branches for a chat
+  async getBranches(chatId: string): Promise<any[]> {
+    const response = await apiClient.get<any[]>(
+      `/api/v1/chats/${chatId}/branches`
+    );
+    return response.data;
+  }
+
+  // Get branch info by ID (includes parent message context)
+  async getBranchInfo(branchId: string): Promise<{
+    branch: {
+      id: string;
+      chat_id: string;
+      branch_name: string | null;
+      branched_from_message_id: string | null;
+      branched_from_response_id: string | null;
+      is_main_branch: boolean;
+      created_at: string;
+    };
+    parentMessage?: {
+      id: string;
+      content: string;
+      role: string;
+    };
+    parentResponse?: {
+      id: string;
+      model: string;
+      content: string;
+    };
+  } | null> {
+    try {
+      const response = await apiClient.get<any>(
+        `/api/v1/chats/branch/${branchId}`
+      );
+      return response.data;
+    } catch {
+      return null;
+    }
+  }
 }
 
 export const chatService = new ChatService();

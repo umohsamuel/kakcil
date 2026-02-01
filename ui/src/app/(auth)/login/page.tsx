@@ -1,5 +1,4 @@
 "use client";
-
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -16,15 +15,12 @@ import Link from "next/link";
 import Image from "next/image";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const { login, isLoggingIn, loginError } = useAuth();
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
     console.log("login details,", { email }, { password });
     login(
       { email, password },
@@ -38,7 +34,6 @@ export default function LoginPage() {
       }
     );
   };
-
   return (
     <div className="bg-brand-white flex min-h-screen items-center justify-center p-4">
       <div className="w-full max-w-md space-y-8">
@@ -81,13 +76,11 @@ export default function LoginPage() {
                   className="border-input"
                 />
               </div>
-
               {loginError && (
                 <div className="border-destructive/50 bg-destructive/10 text-destructive rounded-md border p-3 text-sm">
                   {loginError.message}
                 </div>
               )}
-
               <Button
                 type="submit"
                 className="bg-brand-black text-brand-white hover:bg-brand-black/60 h-10 w-full"

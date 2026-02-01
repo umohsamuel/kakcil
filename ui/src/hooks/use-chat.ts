@@ -132,3 +132,35 @@ export function useCouncilResponses(chatId: string, messageId?: string) {
     refetch: query.refetch,
   };
 }
+
+// Hook for fetching branch info including parent context
+export function useBranchInfo(branchId?: string | null) {
+  const query = useQuery({
+    queryKey: ["branch", branchId],
+    queryFn: () => chatService.getBranchInfo(branchId!),
+    enabled: !!branchId,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  });
+
+  return {
+    branchInfo: query.data,
+    isLoading: query.isLoading,
+    error: query.error,
+  };
+}
+
+// Hook for fetching all branches of a chat
+export function useChatBranches(chatId: string) {
+  const query = useQuery({
+    queryKey: queryKeys.chat.branches(chatId),
+    queryFn: () => chatService.getBranches(chatId),
+    enabled: !!chatId,
+  });
+
+  return {
+    branches: query.data ?? [],
+    isLoading: query.isLoading,
+    error: query.error,
+    refetch: query.refetch,
+  };
+}

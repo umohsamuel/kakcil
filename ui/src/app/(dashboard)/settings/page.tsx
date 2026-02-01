@@ -1,5 +1,4 @@
 "use client";
-
 import { ProtectedRoute } from "@/components/protected-route";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,12 +17,10 @@ import { useAuth } from "@/hooks/use-auth";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { CouncilMembersSettings } from "@/components/council-members-settings";
-
 export default function SettingsPage() {
   const { user } = useAuthStore();
   const { logout } = useAuth();
   const { theme, setTheme } = useTheme();
-
   return (
     <ProtectedRoute>
       <main className="relative flex h-full flex-1 flex-col overflow-y-auto bg-background text-foreground">
@@ -43,7 +40,6 @@ export default function SettingsPage() {
             <LogOut className="h-5 w-5" />
           </Button>
         </header>
-
         <div className="mx-auto w-full max-w-4xl space-y-8 p-8">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
@@ -51,7 +47,6 @@ export default function SettingsPage() {
               Manage your account and preferences
             </p>
           </div>
-
           <div className="grid gap-6">
             <Card className="border-2 border-border">
               <CardHeader>
@@ -104,10 +99,8 @@ export default function SettingsPage() {
                 </div>
               </CardContent>
             </Card>
-
             {/* Council Members Section */}
             <CouncilMembersSettings />
-
             <Card className="border-2 border-border">
               <CardHeader>
                 <CardTitle>Account</CardTitle>

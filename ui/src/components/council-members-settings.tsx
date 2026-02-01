@@ -1,5 +1,4 @@
 "use client";
-
 import { useState, useEffect, useMemo } from "react";
 import {
   Card,
@@ -16,13 +15,11 @@ import {
 } from "@/types/council";
 import { Users, Check, Loader2, Bot, Sparkles, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
 const PROVIDER_LABELS: Record<AIProvider, string> = {
   anthropic: "Anthropic",
   openai: "OpenAI",
   google: "Google",
 };
-
 const PROVIDER_COLORS: Record<AIProvider, { bg: string; border: string; text: string }> = {
   anthropic: {
     bg: "bg-orange-500/10 dark:bg-orange-500/20",
@@ -40,7 +37,6 @@ const PROVIDER_COLORS: Record<AIProvider, { bg: string; border: string; text: st
     text: "text-blue-600 dark:text-blue-400",
   },
 };
-
 export function CouncilMembersSettings() {
   const { members, isLoading: isMembersLoading } = useCouncilMembers();
   const { models: availableModels, isLoading: isModelsLoading } = useAvailableModels();
@@ -48,10 +44,7 @@ export function CouncilMembersSettings() {
   const { clearMembers, isClearing } = useClearCouncilMembers();
   const [selectedModels, setSelectedModels] = useState<Set<string>>(new Set());
   const [hasChanges, setHasChanges] = useState(false);
-
   const isLoading = isMembersLoading || isModelsLoading;
-
-  // Group models by provider
   const modelsByProvider = useMemo(() => {
     return availableModels.reduce(
       (acc, model) => {
@@ -67,8 +60,6 @@ export function CouncilMembersSettings() {
       {} as Record<AIProvider, { model_name: string; description?: string }[]>
     );
   }, [availableModels]);
-
-  // Initialize selected models from current members
   useEffect(() => {
     if (members.length > 0) {
       const activeModels = new Set(
@@ -77,8 +68,6 @@ export function CouncilMembersSettings() {
       setSelectedModels(activeModels);
     }
   }, [members]);
-
-  // Check if there are changes
   useEffect(() => {
     const currentModels = new Set(
       members.filter((m) => m.is_active).map((m) => m.model_name)
@@ -88,12 +77,10 @@ export function CouncilMembersSettings() {
       [...selectedModels].some((m) => !currentModels.has(m));
     setHasChanges(isDifferent);
   }, [selectedModels, members]);
-
   const toggleModel = (modelName: string) => {
     setSelectedModels((prev) => {
       const next = new Set(prev);
       if (next.has(modelName)) {
-        // Don't allow removing if it would leave no models selected
         if (next.size <= 1) {
           return prev;
         }
@@ -104,12 +91,10 @@ export function CouncilMembersSettings() {
       return next;
     });
   };
-
   const handleSave = () => {
     const membersArray = Array.from(selectedModels);
     updateMembers(membersArray);
   };
-
   if (isLoading) {
     return (
       <Card className="border-2 border-border">
@@ -125,7 +110,6 @@ export function CouncilMembersSettings() {
       </Card>
     );
   }
-
   return (
     <Card className="border-2 border-border">
       <CardHeader>
@@ -158,13 +142,11 @@ export function CouncilMembersSettings() {
             ))}
           </div>
         </div>
-
         {/* Models by Provider */}
         {(Object.entries(modelsByProvider) as [AIProvider, { model_name: string; description?: string }[]][]).map(
           ([provider, models]) => {
             if (models.length === 0) return null;
             const colors = PROVIDER_COLORS[provider];
-
             return (
               <div key={provider} className="space-y-3">
                 <div className="flex items-center gap-2">
@@ -176,7 +158,6 @@ export function CouncilMembersSettings() {
                 <div className="grid gap-2 sm:grid-cols-2">
                   {models.map((model) => {
                     const isSelected = selectedModels.has(model.model_name);
-
                     return (
                       <button
                         key={model.model_name}
@@ -207,7 +188,6 @@ export function CouncilMembersSettings() {
                         >
                           {isSelected && <Check className="h-4 w-4 stroke-[3]" />}
                         </div>
-
                         {/* Model Info */}
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
@@ -221,7 +201,6 @@ export function CouncilMembersSettings() {
                             </p>
                           )}
                         </div>
-
                         {/* Provider Badge */}
                         <span
                           className={cn(
@@ -241,7 +220,6 @@ export function CouncilMembersSettings() {
             );
           }
         )}
-
         {/* Action Buttons */}
         <div className="flex items-center justify-between border-t border-border pt-4">
           <p className="text-sm text-muted-foreground">

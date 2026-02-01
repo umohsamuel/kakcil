@@ -1,5 +1,4 @@
 "use client";
-
 import { MarkdownMessage } from "@/components/markdown-message";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -7,7 +6,6 @@ import { X, Send, Copy, Check } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { toast } from "sonner";
 import { ModelNode } from "@/types/chat";
-
 interface ChatSidebarProps {
   isOpen: boolean;
   onClose: () => void;
@@ -23,7 +21,6 @@ interface ChatSidebarProps {
     topic?: string;
   };
 }
-
 export function ChatSidebar({
   isOpen,
   onClose,
@@ -37,33 +34,26 @@ export function ChatSidebar({
 }: ChatSidebarProps) {
   const [copied, setCopied] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
       textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
     }
   }, [input]);
-
   const handleCopy = async (text: string) => {
     await navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
     toast.success("Copied to clipboard");
   };
-
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       onSendMessage();
     }
   };
-
   if (!isOpen) return null;
-
-  // Determine what to display
   const displayContent = selectedNode || finalResponse;
-
   return (
     <div className="flex h-full w-[450px] flex-col border-l border-gray-300 bg-white dark:border-gray-700 dark:bg-gray-900">
       {/* Header */}
@@ -91,7 +81,6 @@ export function ChatSidebar({
           <X className="h-5 w-5" />
         </Button>
       </div>
-
       {/* Content Area */}
       <div className="flex-1 overflow-y-auto p-4">
         {displayContent && (
@@ -104,7 +93,6 @@ export function ChatSidebar({
                 </div>
               </div>
             </div>
-
             {/* Model/Final Response */}
             {((selectedNode && selectedNode.response) || finalResponse) && (
               <div className="group w-full">
@@ -139,7 +127,6 @@ export function ChatSidebar({
                 </Button>
               </div>
             )}
-
             {/* Metadata */}
             {(selectedNode?.topic || finalResponse?.topic) && (
               <div className="border-t border-gray-200 pt-4 dark:border-gray-700">
@@ -152,7 +139,6 @@ export function ChatSidebar({
           </div>
         )}
       </div>
-
       {/* Input Area */}
       <div className="border-t border-gray-300 p-4 dark:border-gray-700">
         <div className="flex items-end gap-2 rounded-2xl border-2 border-gray-900 bg-gray-900 p-2 focus-within:border-gray-700 dark:border-gray-100 dark:bg-gray-100">
