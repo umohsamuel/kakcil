@@ -25,7 +25,6 @@ COPY --from=base /app/migrations ./migrations
 
 
 
-
 COPY --from=base /app/public ./public
 
 COPY . .
