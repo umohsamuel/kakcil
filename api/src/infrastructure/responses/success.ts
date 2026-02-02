@@ -64,35 +64,37 @@ export class SuccessResponseWithCookies {
 
   send = () => {
     const environmentVariables = new AppSecrets();
+    const isProduction = process.env.NODE_ENV === "production";
+    const cookieOptions = {
+      signed: true,
+      maxAge: environmentVariables.cookieExpires,
+      httpOnly: false,
+      secure: isProduction, // Required for sameSite: 'none'
+      sameSite: isProduction ? ("none" as const) : ("lax" as const), // Required for cross-origin cookies
+    };
+
     if (this.cookie[0]) {
-      this.response.cookie(this.cookie[0].key, this.cookie[0].value, {
-        signed: true,
-        maxAge: environmentVariables.cookieExpires,
-        httpOnly: false,
-      });
+      this.response.cookie(this.cookie[0].key, this.cookie[0].value, cookieOptions);
     }
     if (this.cookie[1]) {
-      this.response.cookie(this.cookie[1].key, this.cookie[1].value, {
-        signed: true,
-        maxAge: environmentVariables.cookieExpires,
-        httpOnly: false,
-      });
+      this.response.cookie(this.cookie[1].key, this.cookie[1].value, cookieOptions);
     }
     this.response.status(this.success.statusCode).json(this.success);
   };
 
   logout = () => {
+    const isProduction = process.env.NODE_ENV === "production";
+    const clearCookieOptions = {
+      signed: true,
+      maxAge: 0,
+      httpOnly: false,
+      secure: isProduction,
+      sameSite: isProduction ? ("none" as const) : ("lax" as const),
+    };
+
     this.response
-      .cookie("token", "", {
-        signed: true,
-        maxAge: 0,
-        httpOnly: false,
-      })
-      .cookie("refreshToken", "", {
-        signed: true,
-        maxAge: 0,
-        httpOnly: false,
-      })
+      .cookie("token", "", clearCookieOptions)
+      .cookie("refreshToken", "", clearCookieOptions)
       .json(this.success);
   };
 }

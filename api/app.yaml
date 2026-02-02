@@ -1,0 +1,14 @@
+runtime: nodejs24
+
+service: default
+
+handlers:
+  - url: /api/.*
+    secure: always
+    redirect_http_response_code: 301
+    script: auto
+
+
+
+instance_class: F2
+

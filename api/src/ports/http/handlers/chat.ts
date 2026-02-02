@@ -390,26 +390,28 @@ export default class ChatHandler {
   }
 
   private getChatBranches = async (req: Request, res: Response) => {
-    const { id } = req.params;
+    const { id } = req.params as { id?: string };
 
     if (!id) {
       throw new BadRequestError("Chat ID is required");
     }
 
-    const branches = await this.adapter.chatBranchAdapter.getChatBranchesByChatId(id);
+    const branches =
+      await this.adapter.chatBranchAdapter.getChatBranchesByChatId(id);
 
     return new SuccessResponse(res, branches).send();
   };
 
   private getBranchWithParentContext = async (req: Request, res: Response) => {
-    const { branchId } = req.params;
+    const { branchId } = req.params as { branchId?: string };
 
     if (!branchId) {
       throw new BadRequestError("Branch ID is required");
     }
 
     // Get the branch info
-    const branch = await this.adapter.chatBranchAdapter.getChatBranchById(branchId);
+    const branch =
+      await this.adapter.chatBranchAdapter.getChatBranchById(branchId);
 
     if (!branch) {
       throw new BadRequestError("Branch not found");
@@ -420,33 +422,40 @@ export default class ChatHandler {
 
     // If this branch was created from a message, fetch that message
     if (branch.branched_from_message_id) {
-      const messages = await this.services.chatService.chatRepository.getRecentMessages(
-        branch.chat_id,
-        null,
-        100
+      const messages =
+        await this.services.chatService.chatRepository.getRecentMessages(
+          branch.chat_id,
+          null,
+          100,
+        );
+      parentMessage = messages?.find(
+        (m) => m.id === branch.branched_from_message_id,
       );
-      parentMessage = messages?.find(m => m.id === branch.branched_from_message_id);
     }
 
     // If this branch was created from a council response, fetch that response
     if (branch.branched_from_response_id) {
       parentResponse = await this.adapter.councilResponseAdapter.findById(
-        branch.branched_from_response_id
+        branch.branched_from_response_id,
       );
     }
 
     return new SuccessResponse(res, {
       branch,
-      parentMessage: parentMessage ? {
-        id: parentMessage.id,
-        content: parentMessage.content,
-        role: parentMessage.role,
-      } : null,
-      parentResponse: parentResponse ? {
-        id: parentResponse.id,
-        model: parentResponse.model,
-        content: parentResponse.content,
-      } : null,
+      parentMessage: parentMessage
+        ? {
+            id: parentMessage.id,
+            content: parentMessage.content,
+            role: parentMessage.role,
+          }
+        : null,
+      parentResponse: parentResponse
+        ? {
+            id: parentResponse.id,
+            model: parentResponse.model,
+            content: parentResponse.content,
+          }
+        : null,
     }).send();
   };
 }

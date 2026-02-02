@@ -89,8 +89,8 @@ export default class AuthenticationHandler {
 
     await this.adapter.councilAdapter.createMany(
       DEFAULT_COUNCIL_MODELS.map((model) => ({
-        userId: user.id as string,
-        modelName: model,
+        user_id: user.id as string,
+        model_name: model,
         provider: this.adapter.modelAdapter.getProviderByModelName(model)!,
         isActive: true,
       })),
