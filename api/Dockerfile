@@ -1,6 +1,6 @@
 FROM oven/bun:1.1.38-alpine AS base
 
-WORKDIR /app
+WORKDIR /api
 
 COPY package.json ./
 
@@ -12,20 +12,20 @@ RUN bun run build
 
 FROM oven/bun:1.1.38-alpine AS prod
 
-WORKDIR /app
+WORKDIR /api
 
 # Create the appuser BEFORE chown
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
-COPY --from=base /app/dist ./dist
-COPY --from=base /app/package.json ./package.json
-COPY --from=base /app/node_modules ./node_modules
-COPY --from=base /app/migrate.cjs ./migrate.cjs
-COPY --from=base /app/migrations ./migrations
+COPY --from=base /api/dist ./dist
+COPY --from=base /api/package.json ./package.json
+COPY --from=base /api/node_modules ./node_modules
+COPY --from=base /api/migrate.cjs ./migrate.cjs
+COPY --from=base /api/migrations ./migrations
 
 
 
-COPY --from=base /app/public ./public
+COPY --from=base /api/public ./public
 
 COPY . .
 
