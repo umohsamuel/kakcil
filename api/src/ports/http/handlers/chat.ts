@@ -25,7 +25,6 @@ export default class ChatHandler {
     this.router.post("/", this.sendMessageToChat);
     this.router.post("/branch", this.branchFromChat);
 
-    // this.router.post("/stream", this.streamMessage);
     this.router.get("/", this.getChats);
     this.router.get("/:id/messages", this.getMessages);
     this.router.get("/:id/branches", this.getChatBranches);

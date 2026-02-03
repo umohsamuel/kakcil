@@ -55,15 +55,14 @@ jobs:
           ssh-keyscan -p ${{ env.SSH_PORT }} ${{ env.SSH_HOST }} >> ~/.ssh/known_hosts
 
       - name: Copy Docker image to GCE VM
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ env.SSH_HOST }}
-          username: ${{ env.SSH_USER }}
-          port: ${{ env.SSH_PORT }}
-          key: ${{ secrets.GCE_SSH_PRIVATE_KEY }}
-          source: "api/myapp-image.tar"
-          target: "${{ env.REMOTE_DIR }}"
-          strip_components: 1
+        run: |
+          echo "📦 Copying Docker image to VM..."
+          scp -i ~/.ssh/id_rsa \
+            -P ${{ env.SSH_PORT }} \
+            -o StrictHostKeyChecking=no \
+            api/myapp-image.tar \
+            ${{ env.SSH_USER }}@${{ env.SSH_HOST }}:${{ env.REMOTE_DIR }}/myapp-image.tar
+          echo "✅ Copy complete"
 
       - name: Deploy Docker container
         uses: appleboy/ssh-action@v0.1.8
