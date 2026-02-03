@@ -4,9 +4,6 @@ on:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - main
     paths:
       - "api/**"
       - ".github/workflows/ci-cd.yml"
@@ -28,6 +25,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Test secrets
+        run: |
+          echo "Testing if secrets work..."
+          if [ "${{ secrets.TEST_SECRET }}" = "80085" ]; then
+            echo "✅ Secrets are working correctly!"
+          else
+            echo "❌ Secret test failed. Value: ${{ secrets.TEST_SECRET }}"
+            exit 1
+          fi
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
         with:
@@ -37,15 +44,13 @@ jobs:
         working-directory: ./api
         run: bun install --frozen-lockfile
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
       - name: Build Docker image
         working-directory: ./api
         run: |
           docker build -t ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} .
           docker save ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} -o myapp-image.tar
           ls -lh myapp-image.tar
+          echo "Image size: $(du -h myapp-image.tar | cut -f1)"
 
       - name: Configure SSH key
         run: |
@@ -57,8 +62,6 @@ jobs:
       - name: Copy Docker image to GCE VM
         run: |
           echo "📦 Copying Docker image to VM..."
-          echo "Source: api/myapp-image.tar"
-          echo "Destination: ${{ env.SSH_USER }}@${{ env.SSH_HOST }}:${{ env.REMOTE_DIR }}/"
           scp -i ~/.ssh/id_rsa \
             -P ${{ env.SSH_PORT }} \
             -o StrictHostKeyChecking=no \
@@ -76,33 +79,35 @@ jobs:
           envs: REMOTE_DIR
           script: |
             cd "${REMOTE_DIR}"
-            cat > .env << EOF
-            SERVER_PORT=SERVER_PORT
-            TEST_SECRET=${{secrets.TEST_SECRET}}
-            CLIENT_ORIGIN=${{secrets.CLIENT_ORIGIN}}
-            COOKIE_EXPIRES=${{secrets.COOKIE_EXPIRES}}
-            COOKIE_SECRET=${{secrets.COOKIE_SECRET}}
-            JWT_EXPIRES=${{secrets.JWT_EXPIRES}}
-            JWT_SECRET=${{secrets.JWT_SECRET}}
-            REFRESH_JWT_EXPIRES=${{secrets.REFRESH_JWT_EXPIRES}}
-            REFRESH_JWT_SECRET=${{secrets.REFRESH_JWT_SECRET}}
-            NODE_ENV=${{secrets.NODE_ENV}}
-            PGHOST=${{secrets.PGHOST}}
-            PGDATABASE=${{secrets.PGDATABASE}}
-            PGUSER=${{secrets.PGUSER}}
-            PGPASSWORD=${{secrets.PGPASSWORD}}
-            PGSSLMODE=${{secrets.PGSSLMODE}}
-            PGCHANNELBINDING=${{secrets.PGCHANNELBINDING}}
-            PGPORT=${{secrets.PGPORT}}
-            MAILER_USER=${{secrets.MAILER_USER}}
-            MAILER_PASSWORD=${{secrets.MAILER_PASSWORD}}
-            MAILER_SERVICE=${{secrets.MAILER_SERVICE}}
-            GOOGLE_GENERATIVE_AI_API_KEY=${{secrets.GOOGLE_GENERATIVE_AI_API_KEY}}
-            OPENAI_API_KEY=${{secrets.OPENAI_API_KEY}}
-            ANTHROPIC_API_KEY=${{secrets.ANTHROPIC_API_KEY}}
+            cat > .env << 'EOF'
+            SERVER_PORT=8080
+            TEST_SECRET=${{ secrets.TEST_SECRET }}
+            CLIENT_ORIGIN=${{ secrets.CLIENT_ORIGIN }}
+            COOKIE_EXPIRES=${{ secrets.COOKIE_EXPIRES }}
+            COOKIE_SECRET=${{ secrets.COOKIE_SECRET }}
+            JWT_EXPIRES=${{ secrets.JWT_EXPIRES }}
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            REFRESH_JWT_EXPIRES=${{ secrets.REFRESH_JWT_EXPIRES }}
+            REFRESH_JWT_SECRET=${{ secrets.REFRESH_JWT_SECRET }}
+            NODE_ENV=${{ secrets.NODE_ENV }}
+            PGHOST=${{ secrets.PGHOST }}
+            PGDATABASE=${{ secrets.PGDATABASE }}
+            PGUSER=${{ secrets.PGUSER }}
+            PGPASSWORD=${{ secrets.PGPASSWORD }}
+            PGSSLMODE=${{ secrets.PGSSLMODE }}
+            PGCHANNELBINDING=${{ secrets.PGCHANNELBINDING }}
+            PGPORT=${{ secrets.PGPORT }}
+            MAILER_USER=${{ secrets.MAILER_USER }}
+            MAILER_PASSWORD=${{ secrets.MAILER_PASSWORD }}
+            MAILER_SERVICE=${{ secrets.MAILER_SERVICE }}
+            GOOGLE_GENERATIVE_AI_API_KEY=${{ secrets.GOOGLE_GENERATIVE_AI_API_KEY }}
+            OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+            ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
             EOF
             chmod 600 .env
             echo "✅ Environment file created"
+            echo "📝 Environment file contents (secrets hidden):"
+            cat .env | sed 's/=.*/=***/'
 
       - name: Deploy Docker container
         uses: appleboy/ssh-action@v0.1.8
@@ -139,12 +144,13 @@ jobs:
             docker stop myapp 2>/dev/null || true
             docker rm myapp 2>/dev/null || true
 
-            # Start new container
+            # Start new container with env file
             echo "🐳 Starting new Bun container..."
             docker run -d \
               --name myapp \
               --restart unless-stopped \
               -p 8080:8080 \
+              --env-file "${REMOTE_DIR}/.env" \
               --log-driver json-file \
               --log-opt max-size=10m \
               --log-opt max-file=3 \
@@ -152,9 +158,14 @@ jobs:
 
             # Wait for container to start
             echo "⏳ Waiting for container to be healthy..."
-            sleep 5
+            sleep 10
+
+            # Show container logs
+            echo "📝 Container logs:"
+            docker logs myapp
 
             # Health check
+            echo "🔍 Testing health endpoint..."
             if curl -f http://localhost:8080/health; then
               echo "✅ Deployment successful! Health check passed."
               
@@ -168,8 +179,14 @@ jobs:
               
               # Remove dangling images
               docker image prune -f
+              
+              # Cleanup tar file
+              rm -f myapp-image.tar
             else
               echo "❌ Health check failed! Rolling back..."
+              echo "📝 Failed container logs:"
+              docker logs myapp
+              
               docker stop myapp
               docker rm myapp
               
@@ -181,13 +198,11 @@ jobs:
                   --name myapp \
                   --restart unless-stopped \
                   -p 8080:8080 \
+                  --env-file "${REMOTE_DIR}/.env" \
                   myapp:$LAST_BACKUP
               fi
               exit 1
             fi
-
-            # Cleanup tar file
-            rm -f myapp-image.tar
 
             echo "🎉 Bun API deployment complete!"
 
@@ -203,9 +218,9 @@ jobs:
             docker ps --filter name=myapp
             echo ""
             echo "📝 Recent logs:"
-            docker logs --tail 20 myapp
+            docker logs --tail 30 myapp
             echo ""
-            echo "🔍 Testing endpoint:"
-            curl -s http://localhost:8080
+            echo "🔍 Testing endpoints:"
+            curl -s http://localhost:8080 || echo "Main endpoint failed"
             echo ""
-            curl -s http://localhost:8080/health
+            curl -s http://localhost:8080/health || echo "Health endpoint failed"
