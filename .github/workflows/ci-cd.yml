@@ -7,6 +7,9 @@ on:
   pull_request:
     branches:
       - main
+    paths:
+      - "api/**"
+      - ".github/workflows/ci-cd.yml"
 
 env:
   IMAGE_NAME: myapp
@@ -31,6 +34,7 @@ jobs:
           bun-version: latest
 
       - name: Install dependencies
+        working-directory: ./api
         run: bun install --frozen-lockfile
 
       - name: Set up Docker Buildx
@@ -39,8 +43,8 @@ jobs:
       - name: Build Docker image
         uses: docker/build-push-action@v5
         with:
-          context: .
-          file: ./Dockerfile
+          context: ./api
+          file: ./api/Dockerfile
           tags: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
           outputs: type=docker,dest=/tmp/myapp-image.tar
           cache-from: type=gha
