@@ -1,42 +1,50 @@
-FROM oven/bun:1.1.38-alpine AS base
+FROM oven/bun:alpine AS base
 
-WORKDIR /api
+# Set working directory
+WORKDIR /app
 
-COPY package.json ./
+# Copy package files first (for better caching)
+COPY package.json bun.lock ./
 
-RUN bun install
+# Install dependencies (include dev for build)
+RUN bun install --frozen-lockfile
 
+# Copy the rest of the source code
 COPY . .
 
-RUN bun run build
+# 2️⃣ Runtime image
+FROM oven/bun:alpine AS prod
 
-FROM oven/bun:1.1.38-alpine AS prod
-
-WORKDIR /api
+WORKDIR /app
 
 # Create the appuser BEFORE chown
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
-COPY --from=base /api/dist ./dist
-COPY --from=base /api/package.json ./package.json
-COPY --from=base /api/node_modules ./node_modules
-COPY --from=base /api/migrate.cjs ./migrate.cjs
-COPY --from=base /api/migrations ./migrations
+# Copy only what's needed from builder
+COPY --from=base /app/package.json ./package.json
+COPY --from=base /app/bun.lock ./bun.lock
+COPY --from=base /app/node_modules ./node_modules
+COPY --from=base /app/migrate.cjs ./migrate.cjs
+COPY --from=base /app/migrations ./migrations
 
-
-
-COPY --from=base /api/public ./public
-
+# Copy the rest of the source code
 COPY . .
 
+# Create uploads directory and set permissions
+RUN mkdir -p /app/uploads && \
+    mkdir -p /app/public/temp && \
+    chown -R appuser:appgroup /app/uploads && \
+    chown -R appuser:appgroup /app/public
 
-# Cloud Run requires this
-ENV PORT=8080
-ENV NODE_ENV=production
-
+# Expose your Express port
 EXPOSE 8080
 
-# Cloud Run runs as non-root by default (bun image already handles this)
+# Use a non-root user (recommended)
+USER appuser
 
-# Run migrations + start server
-CMD ["sh", "-c", "bun run migrate && bun run start"]
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:8080/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1) })"
+
+# Start the app
+CMD ["sh", "-c", "bun start"]

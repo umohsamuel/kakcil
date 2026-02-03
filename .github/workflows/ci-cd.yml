@@ -1,0 +1,153 @@
+name: CI/CD → GCE VM (Backend)
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+env:
+  IMAGE_NAME: myapp
+  IMAGE_TAG: latest
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    env:
+      REMOTE_DIR: ${{ secrets.GCE_REMOTE_DIR }}
+      SSH_USER: ${{ secrets.GCE_SSH_USER }}
+      SSH_HOST: ${{ secrets.GCE_SSH_HOST }}
+      SSH_PORT: ${{ secrets.GCE_SSH_PORT || '22' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          tags: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          outputs: type=docker,dest=/tmp/myapp-image.tar
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Configure SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.GCE_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -p ${{ env.SSH_PORT }} ${{ env.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Copy Docker image to GCE VM
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ env.SSH_HOST }}
+          username: ${{ env.SSH_USER }}
+          port: ${{ env.SSH_PORT }}
+          key: ${{ secrets.GCE_SSH_PRIVATE_KEY }}
+          source: "/tmp/myapp-image.tar"
+          target: "${{ env.REMOTE_DIR }}"
+          strip_components: 1
+
+      - name: Deploy Docker container
+        uses: appleboy/ssh-action@v0.1.8
+        with:
+          host: ${{ env.SSH_HOST }}
+          username: ${{ env.SSH_USER }}
+          port: ${{ env.SSH_PORT }}
+          key: ${{ secrets.GCE_SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+
+            echo "🚀 Starting deployment to ${REMOTE_DIR}"
+            cd "${REMOTE_DIR}"
+
+            # Load the new Docker image
+            echo "📦 Loading Docker image..."
+            docker load -i myapp-image.tar
+
+            # Tag with timestamp for backup
+            TIMESTAMP=$(date +%s)
+            docker tag myapp:latest myapp:backup-$TIMESTAMP || true
+
+            # Remove old containers
+            echo "🧹 Cleaning up old containers..."
+            docker stop myapp 2>/dev/null || true
+            docker rm myapp 2>/dev/null || true
+
+            # Start new container
+            echo "🐳 Starting new container..."
+            docker run -d \
+              --name myapp \
+              --restart unless-stopped \
+              -p 8080:8080 \
+              --log-driver json-file \
+              --log-opt max-size=10m \
+              --log-opt max-file=3 \
+              myapp:latest
+
+            # Wait for container to start
+            echo "⏳ Waiting for container to be healthy..."
+            sleep 5
+
+            # Health check
+            if docker exec myapp node -e "require('http').get('http://localhost:8080/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1) })"; then
+              echo "✅ Deployment successful! Health check passed."
+              
+              # Cleanup old images (keep last 3 backups)
+              echo "🧹 Cleaning up old backup images..."
+              docker images myapp --format "{{.Tag}}" | grep "backup-" | sort -r | tail -n +4 | xargs -r -I {} docker rmi myapp:{} || true
+              
+              # Remove dangling images
+              docker image prune -f
+            else
+              echo "❌ Health check failed! Rolling back..."
+              docker stop myapp
+              docker rm myapp
+              
+              # Restore previous version if exists
+              LAST_BACKUP=$(docker images myapp --format "{{.Tag}}" | grep "backup-" | sort -r | head -n 1)
+              if [ ! -z "$LAST_BACKUP" ]; then
+                echo "♻️ Restoring backup: $LAST_BACKUP"
+                docker run -d \
+                  --name myapp \
+                  --restart unless-stopped \
+                  -p 8080:8080 \
+                  myapp:$LAST_BACKUP
+              fi
+              exit 1
+            fi
+
+            # Cleanup tar file
+            rm -f myapp-image.tar
+
+            echo "🎉 Deployment complete!"
+
+      - name: Verify deployment
+        uses: appleboy/ssh-action@v0.1.8
+        with:
+          host: ${{ env.SSH_HOST }}
+          username: ${{ env.SSH_USER }}
+          port: ${{ env.SSH_PORT }}
+          key: ${{ secrets.GCE_SSH_PRIVATE_KEY }}
+          script: |
+            echo "📊 Container status:"
+            docker ps --filter name=myapp
+            echo ""
+            echo "📝 Recent logs:"
+            docker logs --tail 20 myapp

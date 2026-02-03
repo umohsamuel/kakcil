@@ -1,0 +1,40 @@
+services:
+  backend:
+    build: .
+    container_name: kakcil_backend
+    restart: unless-stopped
+    environment:
+      - TEST_SECRET:${TEST_SECRET}
+      - PORT:${SERVER_PORT=8080}
+      - CLIENT_ORIGIN:${CLIENT_ORIGIN}
+      - COOKIE_EXPIRES:${COOKIE_EXPIRES}
+      - COOKIE_SECRET:${COOKIE_SECRET}
+      - JWT_EXPIRES:${JWT_EXPIRES}
+      - JWT_SECRET:${JWT_SECRET}
+      - REFRESH_JWT_EXPIRES:${REFRESH_JWT_EXPIRES}
+      - REFRESH_JWT_SECRET:${REFRESH_JWT_SECRET}
+
+      - PGHOST:${PGHOST}
+      - PGDATABASE:${PGDATABASE}
+      - PGUSER:${PGUSER}
+      - PGPASSWORD:${PGPASSWORD}
+      - PGSSLMODE:${PGSSLMODE}
+      - PGCHANNELBINDING:${PGCHANNELBINDING}
+      - PGPORT:${PGPORT}
+
+      - GOOGLE_GENERATIVE_AI_API_KEY:${GOOGLE_GENERATIVE_AI_API_KEY}
+      - OPENAI_API_KEY:${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY:${ANTHROPIC_API_KEY}
+
+      - MAILER_USER:${MAILER_USER}
+      - MAILER_PASSWORD:${MAILER_PASSWORD}
+      - MAILER_SERVICE:${MAILER_SERVICE}
+
+    ports:
+      - "8080:8080"
+    networks:
+      - kakcil_network
+
+networks:
+  kakcil_network:
+    driver: bridge
