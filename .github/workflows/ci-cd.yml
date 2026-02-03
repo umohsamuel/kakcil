@@ -57,11 +57,13 @@ jobs:
       - name: Copy Docker image to GCE VM
         run: |
           echo "📦 Copying Docker image to VM..."
+          echo "Source: api/myapp-image.tar"
+          echo "Destination: ${{ env.SSH_USER }}@${{ env.SSH_HOST }}:${{ env.REMOTE_DIR }}/"
           scp -i ~/.ssh/id_rsa \
             -P ${{ env.SSH_PORT }} \
             -o StrictHostKeyChecking=no \
             api/myapp-image.tar \
-            ${{ env.SSH_USER }}@${{ env.SSH_HOST }}:${{ env.REMOTE_DIR }}/myapp-image.tar
+            ${{ env.SSH_USER }}@${{ env.SSH_HOST }}:${{ env.REMOTE_DIR }}/
           echo "✅ Copy complete"
 
       - name: Deploy Docker container
@@ -71,6 +73,7 @@ jobs:
           username: ${{ env.SSH_USER }}
           port: ${{ env.SSH_PORT }}
           key: ${{ secrets.GCE_SSH_PRIVATE_KEY }}
+          envs: REMOTE_DIR
           script: |
             set -e
 
