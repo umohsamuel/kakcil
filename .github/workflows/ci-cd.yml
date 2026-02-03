@@ -66,6 +66,44 @@ jobs:
             ${{ env.SSH_USER }}@${{ env.SSH_HOST }}:${{ env.REMOTE_DIR }}/
           echo "✅ Copy complete"
 
+      - name: Create env file on VM
+        uses: appleboy/ssh-action@v0.1.8
+        with:
+          host: ${{ env.SSH_HOST }}
+          username: ${{ env.SSH_USER }}
+          port: ${{ env.SSH_PORT }}
+          key: ${{ secrets.GCE_SSH_PRIVATE_KEY }}
+          envs: REMOTE_DIR
+          script: |
+            cd "${REMOTE_DIR}"
+            cat > .env << EOF
+            SERVER_PORT=SERVER_PORT
+            TEST_SECRET=${{secrets.TEST_SECRET}}
+            CLIENT_ORIGIN=${{secrets.CLIENT_ORIGIN}}
+            COOKIE_EXPIRES=${{secrets.COOKIE_EXPIRES}}
+            COOKIE_SECRET=${{secrets.COOKIE_SECRET}}
+            JWT_EXPIRES=${{secrets.JWT_EXPIRES}}
+            JWT_SECRET=${{secrets.JWT_SECRET}}
+            REFRESH_JWT_EXPIRES=${{secrets.REFRESH_JWT_EXPIRES}}
+            REFRESH_JWT_SECRET=${{secrets.REFRESH_JWT_SECRET}}
+            NODE_ENV=${{secrets.NODE_ENV}}
+            PGHOST=${{secrets.PGHOST}}
+            PGDATABASE=${{secrets.PGDATABASE}}
+            PGUSER=${{secrets.PGUSER}}
+            PGPASSWORD=${{secrets.PGPASSWORD}}
+            PGSSLMODE=${{secrets.PGSSLMODE}}
+            PGCHANNELBINDING=${{secrets.PGCHANNELBINDING}}
+            PGPORT=${{secrets.PGPORT}}
+            MAILER_USER=${{secrets.MAILER_USER}}
+            MAILER_PASSWORD=${{secrets.MAILER_PASSWORD}}
+            MAILER_SERVICE=${{secrets.MAILER_SERVICE}}
+            GOOGLE_GENERATIVE_AI_API_KEY=${{secrets.GOOGLE_GENERATIVE_AI_API_KEY}}
+            OPENAI_API_KEY=${{secrets.OPENAI_API_KEY}}
+            ANTHROPIC_API_KEY=${{secrets.ANTHROPIC_API_KEY}}
+            EOF
+            chmod 600 .env
+            echo "✅ Environment file created"
+
       - name: Deploy Docker container
         uses: appleboy/ssh-action@v0.1.8
         with:
