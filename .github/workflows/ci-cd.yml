@@ -41,14 +41,11 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./api
-          file: ./api/Dockerfile
-          tags: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
-          outputs: type=docker,dest=/tmp/myapp-image.tar
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+        working-directory: ./api
+        run: |
+          docker build -t ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} .
+          docker save ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} -o myapp-image.tar
+          ls -lh myapp-image.tar
 
       - name: Configure SSH key
         run: |
@@ -64,7 +61,7 @@ jobs:
           username: ${{ env.SSH_USER }}
           port: ${{ env.SSH_PORT }}
           key: ${{ secrets.GCE_SSH_PRIVATE_KEY }}
-          source: "/tmp/myapp-image.tar"
+          source: "api/myapp-image.tar"
           target: "${{ env.REMOTE_DIR }}"
           strip_components: 1
 
@@ -78,8 +75,16 @@ jobs:
           script: |
             set -e
 
-            echo "🚀 Starting deployment to ${REMOTE_DIR}"
+            echo "🚀 Starting Bun API deployment to ${REMOTE_DIR}"
             cd "${REMOTE_DIR}"
+
+            # Verify tar file exists
+            if [ ! -f myapp-image.tar ]; then
+              echo "❌ Error: myapp-image.tar not found!"
+              exit 1
+            fi
+
+            echo "📦 File size: $(du -h myapp-image.tar | cut -f1)"
 
             # Load the new Docker image
             echo "📦 Loading Docker image..."
@@ -95,7 +100,7 @@ jobs:
             docker rm myapp 2>/dev/null || true
 
             # Start new container
-            echo "🐳 Starting new container..."
+            echo "🐳 Starting new Bun container..."
             docker run -d \
               --name myapp \
               --restart unless-stopped \
@@ -110,8 +115,12 @@ jobs:
             sleep 5
 
             # Health check
-            if docker exec myapp node -e "require('http').get('http://localhost:8080/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1) })"; then
+            if curl -f http://localhost:8080/health; then
               echo "✅ Deployment successful! Health check passed."
+              
+              # Show container info
+              echo "📊 Container info:"
+              docker ps --filter name=myapp --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
               
               # Cleanup old images (keep last 3 backups)
               echo "🧹 Cleaning up old backup images..."
@@ -140,7 +149,7 @@ jobs:
             # Cleanup tar file
             rm -f myapp-image.tar
 
-            echo "🎉 Deployment complete!"
+            echo "🎉 Bun API deployment complete!"
 
       - name: Verify deployment
         uses: appleboy/ssh-action@v0.1.8
@@ -155,3 +164,8 @@ jobs:
             echo ""
             echo "📝 Recent logs:"
             docker logs --tail 20 myapp
+            echo ""
+            echo "🔍 Testing endpoint:"
+            curl -s http://localhost:8080
+            echo ""
+            curl -s http://localhost:8080/health
