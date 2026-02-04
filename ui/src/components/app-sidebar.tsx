@@ -9,7 +9,6 @@ import Link from "next/link";
 import { useCallback } from "react";
 import {
   LogOut,
-  MessageSquare,
   Settings,
   Loader2,
   Plus,
@@ -29,7 +28,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarSeparator,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
@@ -70,19 +68,18 @@ export function AppSidebar() {
 
   return (
     <Sidebar className={`bg-foreground lg:w-[16rem]`}>
-      <SidebarHeader className="bg-foreground text-background hidden group-data-[collapsible=icon]:hidden md:block">
+      <SidebarHeader className="bg-foreground text-background group-data-[collapsible=icon]:hidden">
         <div className="flex items-center justify-between p-2">
           <div className="flex items-center gap-2">
-            <Image
-              src="/logo.png"
-              alt="Kakcil Logo"
-              width={24}
-              height={24}
-              className="shrink-0 invert-0 dark:invert-100"
-            />
-            <span className="hidden font-mono font-bold lg:inline-block">
-              KAKCIL
-            </span>
+            <Link href={`/`}>
+              <Image
+                src="/logo.png"
+                alt="Kakcil Logo"
+                width={24}
+                height={24}
+                className="shrink-0 invert-0 dark:invert-100"
+              />
+            </Link>
           </div>
           {isMobile && (
             <Button
@@ -149,7 +146,7 @@ export function AppSidebar() {
                         className={`max-w-[14rem] group-data-[collapsible=icon]:max-w-[3rem]`}
                       >
                         {/*<MessageSquare className="h-4 w-4" />*/}
-                        <span className="line-clamp-1 truncate group-data-[collapsible=icon]:truncate">
+                        <span className="line-clamp-1 truncate font-medium capitalize group-data-[collapsible=icon]:truncate">
                           {chat.title || "Untitled Chat"}
                         </span>
                       </Link>

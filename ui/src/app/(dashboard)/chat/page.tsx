@@ -194,7 +194,7 @@ function ChatPageContent() {
               {sidebarOpen && !mobileShowSidebar && (
                 <button
                   onClick={() => setMobileShowSidebar(true)}
-                  className="bg-primary text-primary-foreground absolute right-4 bottom-4 z-10 flex items-center gap-2 rounded-full px-4 py-2 shadow-lg md:hidden"
+                  className="bg-foreground text-background absolute right-4 bottom-4 z-10 flex items-center gap-2 rounded-sm px-4 py-2 shadow-lg md:hidden"
                 >
                   <PanelRightOpen className="h-4 w-4" />
                   <span className="text-sm font-medium">View Details</span>
