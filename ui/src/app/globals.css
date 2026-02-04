@@ -5,6 +5,8 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme inline {
+  --font-bitcount-grid-double: "Bitcount Grid Double", sans-serif;
+
   --color-brand-black: #2c2c34;
   --color-brand-white: #ffffff;
 

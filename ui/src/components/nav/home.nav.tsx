@@ -10,7 +10,7 @@ export function NavHome() {
 
   return (
     <nav className="absolute top-0 left-1/2 z-50 container mx-auto flex h-[100px] -translate-x-1/2 items-center justify-between px-4">
-      <div className="flex items-center gap-3 text-2xl font-bold tracking-tighter">
+      <div className="flex items-center gap-3 font-bold tracking-tighter">
         <Image
           src="/logo.png"
           alt="Kakcil Logo"
@@ -18,7 +18,11 @@ export function NavHome() {
           height={32}
           className={"invert-100"}
         />
-        <span className={"hidden font-mono tracking-wide lg:inline-block"}>
+        <span
+          className={
+            "text-foreground/70 font-bitcount-grid-double hidden pt-1 text-3xl font-light tracking-wide lg:inline-block"
+          }
+        >
           KAKCIL
         </span>
       </div>
@@ -34,13 +38,13 @@ export function NavHome() {
             <Link href="/login">
               <Button
                 variant="ghost"
-                className="text-black hover:text-black/80"
+                className="cursor-pointer text-black hover:text-black/80"
               >
                 Sign In
               </Button>
             </Link>
             <Link href="/register">
-              <Button className="rounded-full bg-black px-6 font-semibold text-white transition-all hover:scale-105 hover:bg-black/90">
+              <Button className="bg-foreground text-background hover:bg-foreground/70 cursor-pointer rounded-sm px-6 font-semibold transition-all hover:shadow-xl">
                 Get Started
               </Button>
             </Link>

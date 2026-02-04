@@ -3,14 +3,12 @@
 import { useState, useEffect, useCallback, useEffectEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ProtectedRoute } from "@/components/protected-route";
-import { useAuth } from "@/hooks/use-auth";
 import { useFlowSSEChat } from "@/hooks/use-sse-chat";
 import { FlowCanvas } from "@/components/flow-canvas";
 import { PanelRightOpen } from "lucide-react";
 import { toast } from "sonner";
 import { Node } from "reactflow";
 import { queryKeys } from "@/lib/query-keys";
-import { ChatHeader } from "@/components/chat/chat-header";
 import { InitialChatView } from "@/components/chat/initial-chat-view";
 import { ChatResponseSidebar } from "@/components/chat/chat-response-sidebar";
 
@@ -22,7 +20,6 @@ type SidebarContent = {
 };
 
 function ChatPageContent() {
-  const { logout } = useAuth();
   const queryClient = useQueryClient();
 
   const handleNewChatCreated = useCallback(

@@ -15,7 +15,6 @@ import {
   X,
   BadgeCheck,
   ChevronsUpDown,
-  CreditCard,
 } from "lucide-react";
 import {
   Sidebar,
@@ -70,17 +69,24 @@ export function AppSidebar() {
     <Sidebar className={`bg-foreground lg:w-[16rem]`}>
       <SidebarHeader className="bg-foreground text-background group-data-[collapsible=icon]:hidden">
         <div className="flex items-center justify-between p-2">
-          <div className="flex items-center gap-2">
-            <Link href={`/`}>
-              <Image
-                src="/logo.png"
-                alt="Kakcil Logo"
-                width={24}
-                height={24}
-                className="shrink-0 invert-0 dark:invert-100"
-              />
-            </Link>
-          </div>
+          <Link href={`/`} className="flex items-center gap-2">
+            <Image
+              src="/logo.png"
+              alt="Kakcil Logo"
+              width={24}
+              height={24}
+              className="shrink-0 invert-0 dark:invert-100"
+            />
+
+            <span
+              className={
+                "text-background/70 font-bitcount-grid-double pt-1 text-xl font-light tracking-wide"
+              }
+            >
+              KAKCIL
+            </span>
+          </Link>
+
           {isMobile && (
             <Button
               variant="ghost"
@@ -140,12 +146,12 @@ export function AppSidebar() {
                       isActive={currentChatId === chat.id}
                       tooltip={chat.title || "Untitled Chat"}
                       onClick={handleNavigation}
+                      className="hover:bg-background/60"
                     >
                       <Link
                         href={`/chat/${encodeURIComponent(chat.id)}`}
                         className={`max-w-[14rem] group-data-[collapsible=icon]:max-w-[3rem]`}
                       >
-                        {/*<MessageSquare className="h-4 w-4" />*/}
                         <span className="line-clamp-1 truncate font-medium capitalize group-data-[collapsible=icon]:truncate">
                           {chat.title || "Untitled Chat"}
                         </span>
@@ -197,7 +203,7 @@ export function AppSidebar() {
                 </SidebarMenuButton>
               </DropdownMenuTrigger>
               <DropdownMenuContent
-                className="bg-background text-foreground w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
+                className="bg-foreground text-background w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
                 side={isMobile ? "bottom" : "right"}
                 align="end"
                 sideOffset={4}
@@ -222,21 +228,21 @@ export function AppSidebar() {
                 <DropdownMenuSeparator />
                 <DropdownMenuGroup>
                   <DropdownMenuItem
-                    className={`hover:bg-foreground hover:text-background cursor-pointer`}
+                    className={`hover:bg-background hover:text-foreground cursor-pointer`}
                   >
                     <BadgeCheck />
                     Account
                   </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className={`hover:bg-foreground hover:text-background cursor-pointer`}
+                  {/* <DropdownMenuItem
+                    className={`hover:bg-background hover:text-foreground cursor-pointer`}
                   >
                     <CreditCard />
                     Billing
-                  </DropdownMenuItem>
+                  </DropdownMenuItem> */}
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  className={`hover:bg-foreground hover:text-background cursor-pointer`}
+                  className={`cursor-pointer bg-red-500 hover:bg-red-500/50`}
                   onClick={() => logout()}
                 >
                   <LogOut />

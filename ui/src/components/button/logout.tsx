@@ -12,7 +12,7 @@ export default function LogoutButton() {
       variant="ghost"
       size="icon"
       onClick={() => logout()}
-      className="bg-foreground/20 hover:text-background rounded-sm p-1 text-red-500 hover:bg-red-500"
+      className="bg-foreground/10 hover:text-background rounded-sm p-1 text-red-500 hover:bg-red-500"
     >
       <LogOut className="h-5 w-5" />
     </Button>

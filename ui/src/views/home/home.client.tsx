@@ -14,7 +14,7 @@ export function CTAButtonClient() {
         <Link href="/chat">
           <Button
             size="lg"
-            className="h-16 cursor-pointer gap-2 rounded-full bg-black px-10 text-lg font-bold text-white hover:scale-105 hover:bg-black/90"
+            className="bg-foreground text-background hover:bg-foreground/70 h-16 cursor-pointer gap-2 rounded-lg px-10 text-lg font-bold hover:shadow-2xl"
           >
             Launch Council <ArrowRight className="h-5 w-5" />
           </Button>
@@ -24,18 +24,9 @@ export function CTAButtonClient() {
           <Link href="/register">
             <Button
               size="lg"
-              className="h-16 cursor-pointer gap-2 rounded-full bg-black px-10 text-lg font-bold text-white hover:scale-105 hover:bg-black/90"
+              className="bg-foreground text-background hover:bg-foreground/70 h-16 cursor-pointer gap-2 rounded-lg px-10 text-lg font-bold hover:shadow-2xl"
             >
               Start Free <ArrowRight className="h-5 w-5" />
-            </Button>
-          </Link>
-          <Link href="/login">
-            <Button
-              variant="outline"
-              size="lg"
-              className="h-16 cursor-pointer rounded-full border-black/20 px-10 text-lg hover:scale-105 hover:bg-black/5"
-            >
-              Sign In
             </Button>
           </Link>
         </>
