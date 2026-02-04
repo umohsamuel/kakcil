@@ -29,7 +29,7 @@ export function NavHome() {
       <div className="flex items-center gap-4">
         {isAuthenticated ? (
           <Link href="/chat">
-            <Button className="rounded-full bg-black px-6 text-white transition-all hover:scale-105 hover:bg-black/90">
+            <Button className="bg-foreground text-background hover:bg-foreground/70 cursor-pointer rounded-sm px-6 transition-all hover:shadow-xl">
               Open Chat
             </Button>
           </Link>
@@ -38,7 +38,7 @@ export function NavHome() {
             <Link href="/login">
               <Button
                 variant="ghost"
-                className="cursor-pointer text-black hover:text-black/80"
+                className="text-foreground hover:text-foreground/80 cursor-pointer"
               >
                 Sign In
               </Button>
