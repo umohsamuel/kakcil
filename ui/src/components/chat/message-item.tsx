@@ -31,8 +31,8 @@ export function MessageItem({
       <div
         className={`relative ${
           role === "user"
-            ? "max-w-[85%] rounded-2xl rounded-tr-sm bg-black px-6 py-4 text-white sm:max-w-[75%]"
-            : "group w-full font-mono text-base"
+            ? "max-w-[85%] rounded-2xl rounded-tr-sm bg-black px-6 py-4 text-sm text-white sm:max-w-[75%] md:text-base"
+            : "group w-full font-mono text-sm md:text-base"
         }`}
       >
         {role === "user" ? (

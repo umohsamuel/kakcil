@@ -1,16 +1,26 @@
-import { useMutation, useQuery, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  useInfiniteQuery,
+} from "@tanstack/react-query";
 import { chatService } from "@/services/chat.service";
 import { queryKeys } from "@/lib/query-keys";
-import { SendMessageRequest, ChatMessage, BranchFromResponseRequest } from "@/types/chat";
-import { useMemo, useCallback } from "react";
+import { SendMessageRequest, BranchFromResponseRequest } from "@/types/chat";
+import { useCallback } from "react";
 
 const PAGE_SIZE = 20;
 
 export function useMessages(chatId?: string, branchId?: string) {
   const query = useInfiniteQuery({
     queryKey: queryKeys.chat.messages(chatId, branchId),
-    queryFn: ({ pageParam = 0 }) => 
-      chatService.getMessages(chatId!, PAGE_SIZE, pageParam * PAGE_SIZE, branchId),
+    queryFn: ({ pageParam = 0 }) =>
+      chatService.getMessages(
+        chatId!,
+        PAGE_SIZE,
+        pageParam * PAGE_SIZE,
+        branchId
+      ),
     enabled: !!chatId,
     getNextPageParam: (lastPage, allPages) => {
       // If we got fewer messages than PAGE_SIZE, there are no more pages
@@ -21,17 +31,18 @@ export function useMessages(chatId?: string, branchId?: string) {
   });
 
   // Flatten and deduplicate messages from all pages
-  const messages = useMemo(() => {
-    if (!query.data?.pages) return [];
-    const allMessages = query.data.pages.flat();
-    // Deduplicate by id
-    const seen = new Set<string>();
-    return allMessages.filter((msg) => {
-      if (seen.has(msg.id)) return false;
-      seen.add(msg.id);
-      return true;
-    });
-  }, [query.data?.pages]);
+  const messages = query.data
+    ? !query.data.pages
+      ? []
+      : (() => {
+          const seen = new Set<string>();
+          return query.data.pages.flat().filter((msg) => {
+            if (seen.has(msg.id)) return false;
+            seen.add(msg.id);
+            return true;
+          });
+        })()
+    : [];
 
   const fetchMore = useCallback(() => {
     if (query.hasNextPage && !query.isFetchingNextPage) {
@@ -58,7 +69,9 @@ export function useChat(chatId?: string) {
     mutationFn: (data: SendMessageRequest) => chatService.sendMessage(data),
     onSuccess: () => {
       if (chatId) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.chat.messages(chatId) });
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.chat.messages(chatId),
+        });
       }
       queryClient.invalidateQueries({ queryKey: queryKeys.chat.list() });
     },
@@ -97,13 +110,15 @@ export function useBranchFromResponse(chatId: string) {
   const queryClient = useQueryClient();
 
   const branchMutation = useMutation({
-    mutationFn: (data: BranchFromResponseRequest) => 
+    mutationFn: (data: BranchFromResponseRequest) =>
       chatService.branchFromResponse(data),
     onSuccess: () => {
       // Invalidate chat list to show new branch
       queryClient.invalidateQueries({ queryKey: queryKeys.chat.list() });
       if (chatId) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.chat.branches(chatId) });
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.chat.branches(chatId),
+        });
       }
     },
   });
