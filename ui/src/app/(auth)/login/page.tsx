@@ -44,7 +44,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="bg-background text-foreground flex min-h-screen items-center justify-center p-4">
+    <div className="bg-background text-foreground flex min-h-dvh items-center justify-center p-4 text-sm lg:text-base">
       <div className="w-full max-w-md space-y-8">
         <Card className="border-border bg-background text-foreground border-x-1 border-t-1 border-b-1 shadow-xl drop-shadow-2xl">
           <CardHeader className={"flex flex-col items-center text-center"}>

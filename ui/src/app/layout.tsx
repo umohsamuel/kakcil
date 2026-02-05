@@ -5,6 +5,7 @@ import { QueryProvider } from "@/providers/query-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Bitcount_Grid_Double } from "next/font/google";
+import { appMetadata } from "@/constants/metadata";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -21,10 +22,7 @@ const bitcountGridDouble = Bitcount_Grid_Double({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Kakcil AI",
-  description: "AI-powered government council chatbot",
-};
+export const metadata: Metadata = appMetadata;
 
 export default function RootLayout({
   children,

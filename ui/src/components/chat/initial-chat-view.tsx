@@ -28,8 +28,8 @@ export function InitialChatView({
             className="invert-100 dark:invert-0"
           />
         </div>
-        <h2 className="text-2xl font-bold">Start a Conversation</h2>
-        <p className="text-foreground/60 max-w-md">
+        <h2 className="text-xl font-bold lg:text-2xl">Start a Conversation</h2>
+        <p className="text-foreground/60 max-w-md text-sm lg:text-base">
           Ask anything to begin. The council will debate and provide you with
           the best answer.
         </p>
@@ -49,4 +49,3 @@ export function InitialChatView({
     </div>
   );
 }
-

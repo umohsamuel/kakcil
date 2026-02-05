@@ -60,7 +60,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="bg-background text-foreground flex min-h-screen items-center justify-center p-4">
+    <div className="bg-background text-foreground flex min-h-dvh items-center justify-center p-4 text-sm lg:text-base">
       <div className="w-full max-w-md space-y-8">
         <Card className="bg-background text-foreground border-border shadow-xl drop-shadow-2xl">
           <CardHeader className={"flex flex-col items-center text-center"}>
