@@ -12,7 +12,7 @@ export default function DashboardLayout({ children }: PropsWithChildren) {
     <SidebarProvider defaultOpen={true}>
       <AppSidebar />
       <SidebarInset>
-        <header className="flex h-12 shrink-0 items-center justify-between border-b px-4 lg:hidden">
+        <header className="bg-background sticky top-0 left-0 z-10 flex h-12 shrink-0 items-center justify-between border-b px-4 lg:hidden">
           <div className="bg-foreground/10 flex items-center gap-2 rounded-sm p-1">
             <SidebarTrigger className="cursor-pointer" />
           </div>

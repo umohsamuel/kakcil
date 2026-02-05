@@ -170,7 +170,7 @@ export function CouncilMembersSettings() {
                       onClick={() => toggleModel(model.model_name)}
                       disabled={isUpdating}
                       className={cn(
-                        "group relative flex items-start gap-3 rounded-lg border-2 p-3 text-left transition-all duration-200",
+                        "group relative flex cursor-pointer items-start gap-3 rounded-lg border-2 p-3 text-left transition-all duration-200",
                         isSelected
                           ? cn(
                               "border-primary bg-primary/5 dark:bg-primary/10",
@@ -243,7 +243,7 @@ export function CouncilMembersSettings() {
                 setSelectedModels(new Set());
               }}
               disabled={isClearing || isUpdating || selectedModels.size === 0}
-              className="bg-red-500 text-white"
+              className="cursor-pointer bg-red-500 text-white hover:bg-red-500/70"
             >
               {isClearing ? (
                 <>
@@ -260,7 +260,7 @@ export function CouncilMembersSettings() {
             <Button
               onClick={handleSave}
               disabled={isUpdating || isClearing || !hasChanges}
-              className="border-foreground min-w-[100px] border border-solid"
+              className="border-foreground min-w-[100px] cursor-pointer border border-solid disabled:cursor-not-allowed"
             >
               {isUpdating ? (
                 <>

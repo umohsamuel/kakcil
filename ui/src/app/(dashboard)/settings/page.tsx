@@ -19,7 +19,8 @@ export default function SettingsPage() {
 
   return (
     <ProtectedRoute>
-      <main className="bg-background text-foreground relative flex h-full flex-1 flex-col overflow-hidden overflow-y-auto lg:rounded-tl-4xl">
+      <main className="bg-background text-foreground relative flex flex-1 flex-col overflow-hidden overflow-y-auto lg:h-[calc(100dvh-1.5rem)] lg:rounded-tl-4xl">
+        {/* <div className="overflow-y-auto"> */}
         <div className="mx-auto w-full max-w-4xl space-y-8 p-4 lg:p-8">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
@@ -29,43 +30,40 @@ export default function SettingsPage() {
           </div>
           <div className="flex flex-col items-center gap-6">
             {/* <Card className="border-border border-2">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Monitor className="h-5 w-5" /> Appearance
-                </CardTitle>
-                <CardDescription>Customize how Kakcil looks</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-3 gap-4">
-                  {themes.map(({ key, label, icon: Icon }) => (
-                    <Button
-                      key={key}
-                      variant="outline"
-                      className={cn(
-                        "hover:bg-accent hover:text-accent-foreground flex h-24 flex-col gap-2 border-2",
-                        theme === key
-                          ? "border-primary bg-accent text-accent-foreground"
-                          : "border-border"
-                      )}
-                      onClick={() => setTheme(key)}
-                    >
-                      <Icon className="h-6 w-6" />
-                      <span>{label}</span>
-                    </Button>
-                  ))}
-                </div>
-              </CardContent>
-            </Card> */}
-
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Monitor className="h-5 w-5" /> Appearance
+                  </CardTitle>
+                  <CardDescription>Customize how Kakcil looks</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-3 gap-4">
+                    {themes.map(({ key, label, icon: Icon }) => (
+                      <Button
+                        key={key}
+                        variant="outline"
+                        className={cn(
+                          "hover:bg-accent hover:text-accent-foreground flex h-24 flex-col gap-2 border-2",
+                          theme === key
+                            ? "border-primary bg-accent text-accent-foreground"
+                            : "border-border"
+                        )}
+                        onClick={() => setTheme(key)}
+                      >
+                        <Icon className="h-6 w-6" />
+                        <span>{label}</span>
+                      </Button>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card> */}
             {/* Council Members Section */}
             <CouncilMembersSettings />
-
             <Card className="lg:border-border w-full border-2 border-none shadow-none lg:shadow">
               <CardHeader className="px-0 lg:px-6">
                 <CardTitle>Account</CardTitle>
                 <CardDescription>Your account information</CardDescription>
               </CardHeader>
-
               <CardContent className="space-y-4 px-0 lg:px-6">
                 <div className="grid gap-2">
                   <Label>Name</Label>
@@ -75,7 +73,6 @@ export default function SettingsPage() {
                     className="border-input bg-muted"
                   />
                 </div>
-
                 <div className="grid gap-2">
                   <Label>Email</Label>
                   <Input
@@ -88,6 +85,7 @@ export default function SettingsPage() {
             </Card>
           </div>
         </div>
+        {/* </div> */}
       </main>
     </ProtectedRoute>
   );

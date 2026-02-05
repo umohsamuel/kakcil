@@ -163,7 +163,7 @@ function ChatPageContent() {
   }, [flowState.error]);
 
   return (
-    <div className="bg-background text-foreground flex h-full w-full overflow-hidden lg:rounded-tl-4xl">
+    <div className="bg-background text-foreground flex h-full w-full overflow-hidden overflow-y-auto lg:h-[calc(100dvh-1.5rem)] lg:rounded-tl-4xl">
       {/* Main Content Area */}
       <div className="flex flex-1 flex-col">
         <main className="relative flex h-full flex-1 flex-col">
@@ -201,7 +201,6 @@ function ChatPageContent() {
           )}
         </main>
       </div>
-
       {/* Right Sidebar - fullscreen on mobile when open */}
       <ChatResponseSidebar
         isOpen={sidebarOpen}
