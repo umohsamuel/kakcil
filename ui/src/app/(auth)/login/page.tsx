@@ -1,4 +1,5 @@
 "use client";
+
 import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -13,12 +14,15 @@ import {
 } from "@/components/ui/card";
 import Link from "next/link";
 import Image from "next/image";
-import { Loader2 } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const { login, isLoggingIn, loginError } = useAuth();
+  const [showPassword, setShowPassword] = useState(false);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     console.log("login details,", { email }, { password });
@@ -34,10 +38,15 @@ export default function LoginPage() {
       }
     );
   };
+
+  function toggleShowPassword() {
+    setShowPassword(!showPassword);
+  }
+
   return (
-    <div className="bg-brand-white flex min-h-screen items-center justify-center p-4">
+    <div className="bg-background text-foreground flex min-h-screen items-center justify-center p-4">
       <div className="w-full max-w-md space-y-8">
-        <Card className="border-border bg-brand-white text-brand-black border-x-1 border-t-1 border-b-1 shadow-xl drop-shadow-2xl">
+        <Card className="border-border bg-background text-foreground border-x-1 border-t-1 border-b-1 shadow-xl drop-shadow-2xl">
           <CardHeader className={"flex flex-col items-center text-center"}>
             <Image
               src="/logo.png"
@@ -61,20 +70,29 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="border-input"
+                  className="border-foreground/20"
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className="border-input"
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    className="border-foreground/20"
+                  />
+
+                  <div
+                    onClick={toggleShowPassword}
+                    className="absolute top-1/2 right-2 z-10 size-6 -translate-y-1/2 cursor-pointer"
+                  >
+                    {!showPassword ? <Eye size={24} /> : <EyeOff size={24} />}
+                  </div>
+                </div>
               </div>
               {loginError && (
                 <div className="border-destructive/50 bg-destructive/10 text-destructive rounded-md border p-3 text-sm">
@@ -83,7 +101,7 @@ export default function LoginPage() {
               )}
               <Button
                 type="submit"
-                className="bg-brand-black text-brand-white hover:bg-brand-black/60 h-10 w-full"
+                className="bg-foreground text-background hover:bg-foreground/60 h-10 w-full cursor-pointer"
                 disabled={isLoggingIn}
               >
                 {isLoggingIn ? (
@@ -97,13 +115,11 @@ export default function LoginPage() {
               </Button>
             </form>
           </CardContent>
+
           <CardFooter className="border-border flex justify-center border-t pt-6">
-            <p className="text-brand-black/80 text-sm">
+            <p className="text-foreground/80 text-sm">
               Don't have an account?{" "}
-              <Link
-                href="/register"
-                className="text-primary font-medium hover:underline"
-              >
+              <Link href="/register" className="font-medium hover:underline">
                 Sign up
               </Link>
             </p>

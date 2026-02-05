@@ -12,11 +12,11 @@ export default function Home() {
           <h1 className="text-4xl font-black tracking-tighter md:text-7xl lg:text-7xl">
             Decisions by
             <br />
-            <span className="bg-gradient-to-r from-black via-gray-700 to-black bg-clip-text text-transparent">
+            <span className="from-foreground to-foreground via-foreground/70 bg-gradient-to-r bg-clip-text text-transparent">
               Consensus
             </span>
           </h1>
-          <p className="mx-auto max-w-2xl text-lg leading-relaxed font-light text-gray-600 md:text-2xl">
+          <p className="text-foreground/60 mx-auto max-w-2xl text-lg leading-relaxed font-light md:text-2xl">
             Harness the collective intelligence of multiple AI models. Get
             answers you can trust through democratic debate.
           </p>
@@ -27,7 +27,7 @@ export default function Home() {
           {pillsInfo.map((feature, i) => (
             <div
               key={i}
-              className="flex items-center gap-2 rounded-full border border-black/10 bg-white px-4 py-2 text-sm font-medium shadow-sm"
+              className="border-foreground/10 bg-background flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium shadow-sm"
             >
               {feature.icon}
               {feature.text}

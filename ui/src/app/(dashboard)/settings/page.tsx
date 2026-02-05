@@ -20,7 +20,6 @@ export default function SettingsPage() {
   return (
     <ProtectedRoute>
       <main className="bg-background text-foreground relative flex flex-1 flex-col overflow-hidden overflow-y-auto lg:h-[calc(100dvh-1.5rem)] lg:rounded-tl-4xl">
-        {/* <div className="overflow-y-auto"> */}
         <div className="mx-auto w-full max-w-4xl space-y-8 p-4 lg:p-8">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
@@ -85,7 +84,6 @@ export default function SettingsPage() {
             </Card>
           </div>
         </div>
-        {/* </div> */}
       </main>
     </ProtectedRoute>
   );
