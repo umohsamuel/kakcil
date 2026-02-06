@@ -59,7 +59,7 @@ export function ChatInput({
           onKeyDown={handleKeyDown}
           onFocus={handleFocus}
           placeholder={placeholder}
-          className="max-h-[200px] min-h-[50px] w-full resize-none border-0 bg-transparent px-2 py-3 text-sm text-white placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 dark:text-gray-900 dark:placeholder:text-gray-600"
+          className="max-h-[200px] min-h-[50px] w-full resize-none border-0 bg-transparent px-2 py-3 text-sm text-white placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 lg:text-base dark:text-gray-900 dark:placeholder:text-gray-600"
           disabled={disabled}
           rows={1}
         />
@@ -84,7 +84,7 @@ export function ChatInput({
         onKeyDown={handleKeyDown}
         onFocus={handleFocus}
         placeholder={placeholder}
-        className="placeholder:text-background/50 text-background max-h-[200px] min-h-[50px] w-full resize-none border-0 bg-transparent px-2 py-3 text-base ring-0 outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+        className="placeholder:text-background/50 text-background max-h-[200px] min-h-[50px] w-full resize-none border-0 bg-transparent px-2 py-3 text-sm ring-0 outline-none focus-visible:ring-0 focus-visible:ring-offset-0 lg:text-base"
         disabled={disabled}
         rows={1}
       />
@@ -99,4 +99,3 @@ export function ChatInput({
     </div>
   );
 }
-

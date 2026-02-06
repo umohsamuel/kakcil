@@ -5,7 +5,7 @@ import {
   SidebarInset,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import LogoutButton from "@/components/button/logout";
+import { LogoutButtonMobileTopbar } from "@/components/button/logout";
 
 export default function DashboardLayout({ children }: PropsWithChildren) {
   return (
@@ -17,7 +17,7 @@ export default function DashboardLayout({ children }: PropsWithChildren) {
             <SidebarTrigger className="cursor-pointer" />
           </div>
 
-          <LogoutButton />
+          <LogoutButtonMobileTopbar />
         </header>
         <main className="bg-foreground flex-1 overflow-hidden group-data-[collapsible=icon]:ml-[3rem] md:ml-[15rem] lg:pt-6 lg:pl-4">
           {children}
