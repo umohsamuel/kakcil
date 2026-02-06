@@ -8,6 +8,8 @@ import {
   MessageSquare,
 } from "lucide-react";
 import type { StreamPhase, ActiveStream } from "@/store/sse-stream";
+import { useEffect } from "react";
+import { toast } from "sonner";
 
 interface SSEProgressToastProps {
   stream: ActiveStream;
@@ -48,6 +50,52 @@ export function SSEProgressToast({
       onNavigate(chatId);
     }
   };
+
+  useEffect(() => {
+    if (isStreaming && !isError && !isComplete) {
+      if (phaseInfo.phase === "prompting") {
+        toast.promise<{ name: string }>(
+          () =>
+            new Promise((resolve) =>
+              setTimeout(() => resolve({ name: "Event" }), 2000)
+            ),
+          {
+            loading: "Loading...",
+            success: (data) => `${data.name} has been created`,
+            error: "Error",
+          }
+        );
+      }
+
+      if (phaseInfo.phase === "voting") {
+        toast.promise<{ name: string }>(
+          () =>
+            new Promise((resolve) =>
+              setTimeout(() => resolve({ name: "Event" }), 2000)
+            ),
+          {
+            loading: "Loading...",
+            success: (data) => `${data.name} has been created`,
+            error: "Error",
+          }
+        );
+      }
+
+      if (phaseInfo.phase === "aggregation") {
+        toast.promise<{ name: string }>(
+          () =>
+            new Promise((resolve) =>
+              setTimeout(() => resolve({ name: "Event" }), 2000)
+            ),
+          {
+            loading: "Loading...",
+            success: (data) => `${data.name} has been created`,
+            error: "Error",
+          }
+        );
+      }
+    }
+  }, [phaseInfo.phase]);
 
   return (
     <div
@@ -112,10 +160,10 @@ function PhaseIndicatorRow({
   const isPending = currentIndex < stepIndex;
 
   return (
-    <div className="flex items-center gap-2 text-sm">
-      {isComplete && <CheckCircle2 className="h-4 w-4 text-green-500" />}
+    <div className="flex items-center justify-center gap-2 text-center text-sm">
+      {/* {isComplete && <CheckCircle2 className="h-4 w-4 text-green-500" />}
       {isCurrent && <Loader2 className="text-primary h-4 w-4 animate-spin" />}
-      {isPending && <Circle className="text-muted-foreground/40 h-4 w-4" />}
+      {isPending && <Circle className="text-muted-foreground/40 h-4 w-4" />} */}
       <span
         className={
           isComplete

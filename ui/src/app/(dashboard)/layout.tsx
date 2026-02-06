@@ -19,7 +19,7 @@ export default function DashboardLayout({ children }: PropsWithChildren) {
 
           <LogoutButtonMobileTopbar />
         </header>
-        <main className="bg-foreground flex-1 overflow-hidden group-data-[collapsible=icon]:ml-[3rem] md:ml-[15rem] lg:pt-6 lg:pl-4">
+        <main className="bg-foreground flex-1 overflow-hidden md:ml-[15rem] lg:pt-6 lg:pl-4">
           {children}
         </main>
       </SidebarInset>

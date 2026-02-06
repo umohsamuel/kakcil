@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuthStore } from "@/store/auth.store";
+import Link from "next/link";
 
 export default function LogoutButton() {
   const { logout } = useAuth();
@@ -52,10 +53,11 @@ export function LogoutButtonMobileTopbar() {
         >
           <DropdownMenuItem
             className={`hover:bg-background/90 hover:text-foreground cursor-pointer`}
-            onClick={() => logout()}
           >
-            <Settings />
-            Settings
+            <Link href={`/settings`}>
+              <Settings />
+              Settings
+            </Link>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
