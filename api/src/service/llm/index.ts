@@ -24,9 +24,8 @@ export default class LLMService {
 
     return await Promise.all(
       councilMembers.map(async (member) => {
-        console.log(" this is a log inside Prompt models, ", { member });
         try {
-          const result = await this.llmRepository.generateText<SchemaType>(
+          const result = await this.llmRepository.streamText<SchemaType>(
             {
               prompt,
               model: member.model_name,
@@ -37,12 +36,14 @@ export default class LLMService {
             messageHistory,
           );
 
-          return {
-            prompt,
-            model: member.model_name,
-            topic: result.response.topic,
-            response: result.response.response,
-          };
+          if (result) {
+            return {
+              prompt,
+              model: member.model_name,
+              topic: result.response.topic,
+              response: result.response.response,
+            };
+          } else return null;
         } catch (error) {
           console.error(
             `Error getting prompt response from ${member.model_name}:`,
@@ -54,4 +55,89 @@ export default class LLMService {
       }),
     );
   }
+
+  /**
+   * Stream prompt responses from all models with callbacks for partial updates
+   */
+  async streamPromptModels(
+    prompt: string,
+    councilMembers: CouncilMember[],
+    messageHistory: ModelMessage[] | undefined,
+    callbacks: {
+      onPartial: (model: string, partial: string, topic?: string) => void;
+      onComplete: (response: {
+        prompt: string;
+        model: string;
+        topic: string;
+        response: string;
+      }) => void;
+      onError: (model: string, error: string) => void;
+    },
+  ): Promise<Array<{ prompt: string; model: string; topic: string; response: string } | null>> {
+    const schema = z.object({
+      topic: z.string(),
+      response: z.string(),
+    });
+
+    type SchemaType = z.infer<typeof schema>;
+
+    const results = await Promise.all(
+      councilMembers.map(async (member) => {
+        try {
+          const result = await this.llmRepository.streamText<SchemaType>(
+            {
+              prompt,
+              model: member.model_name,
+            },
+            Output.object({
+              schema,
+            }),
+            messageHistory,
+            // onChunk callback - called for each partial update
+            (partial) => {
+              if (partial.output) {
+                callbacks.onPartial(
+                  member.model_name,
+                  partial.output.response || "",
+                  partial.output.topic,
+                );
+              } else if (partial.text) {
+                callbacks.onPartial(member.model_name, partial.text);
+              }
+            },
+          );
+
+          if (result && result.response) {
+            // result.response is the structured object {topic, response}
+            const responseData = result.response as { topic: string; response: string };
+            const response = {
+              prompt,
+              model: member.model_name,
+              topic: responseData.topic,
+              response: responseData.response,
+            };
+            callbacks.onComplete(response);
+            return response;
+          } else {
+            console.error(`No response from ${member.model_name}:`, result);
+            callbacks.onError(member.model_name, "No response received");
+            return null;
+          }
+        } catch (error) {
+          console.error(
+            `Error getting prompt response from ${member.model_name}:`,
+            error,
+          );
+          callbacks.onError(
+            member.model_name,
+            (error as Error).message || "Unknown error",
+          );
+          return null;
+        }
+      }),
+    );
+
+    return results;
+  }
 }
+

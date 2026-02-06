@@ -4,6 +4,7 @@ import { BadRequestError } from "@/infrastructure/errors/badRequest.ts";
 import type { ModelMessage } from "ai";
 import { calculateVote } from "@/infrastructure/utils/vote.ts";
 import { getPaginationParams } from "@/infrastructure/utils/pagination.ts";
+import type { ModelName } from "@/domain/model/entity.ts";
 import type Adapter from "@/adapter";
 import type Services from "@/service";
 
@@ -90,23 +91,53 @@ export default class ChatHandler {
         content: m.content,
       })) as ModelMessage[] | undefined;
 
-      const llmResponses = await this.services.llmService.promptModels(
+      // Stream responses with partial updates
+      const llmResponses = await this.services.llmService.streamPromptModels(
         message,
         councilMembers,
         messageHistory,
+        {
+          onPartial: (model, partial, topic) => {
+            res.write(
+              `event: llmPartial\ndata: LLM Partial ${JSON.stringify({
+                model,
+                partial,
+                topic,
+              })}\n\n`,
+            );
+          },
+          onComplete: (response) => {
+            res.write(
+              `event: llmResponse\ndata: LLM Responses ${JSON.stringify({
+                prompt: response.prompt,
+                model: response.model,
+                topic: response.topic,
+                response: response.response,
+              })}\n\n`,
+            );
+          },
+          onError: (model, error) => {
+            res.write(
+              `event: llmError\ndata: LLM Error ${JSON.stringify({
+                model,
+                error,
+              })}\n\n`,
+            );
+          },
+        },
       );
 
-      for (const response of llmResponses) {
-        if (response) {
-          res.write(
-            `event: llmResponse\ndata: LLM Responses ${JSON.stringify({
-              prompt: response.prompt,
-              model: response.model,
-              topic: response.topic,
-              response: response.response,
-            })}\n\n`,
-          );
-        }
+      // Filter out null/undefined responses from failed models
+      const validResponses = llmResponses.filter((r): r is NonNullable<typeof r> => r != null);
+      
+      if (validResponses.length === 0) {
+        res.write(
+          `event: error\ndata: ${JSON.stringify({
+            error: "All LLM providers failed to respond. Please try again later.",
+          })}\n\n`,
+        );
+        res.end();
+        return;
       }
 
       const llmScores = await this.services.llmService.llmRepository.vote(
@@ -114,7 +145,7 @@ export default class ChatHandler {
           prompt: message,
           history: prevMessages,
         },
-        llmResponses,
+        validResponses,
         councilMembers,
       );
 
@@ -131,7 +162,7 @@ export default class ChatHandler {
         }
       }
 
-      const voteResult = calculateVote(llmResponses, llmScores);
+      const voteResult = calculateVote(validResponses, llmScores);
 
       if (!voteResult || !voteResult.prompt) {
         res.write(
@@ -172,7 +203,7 @@ export default class ChatHandler {
       await this.services.councilResponseService.saveResponses(
         chat_id,
         userMessageId,
-        llmResponses,
+        validResponses as Array<{ prompt: string; model: ModelName; topic?: string; response: string }>,
         voteResult.model,
       );
 
@@ -217,29 +248,60 @@ export default class ChatHandler {
       const councilMembers =
         await this.services.councilService.getUserCouncilMembers(id);
 
-      const llmResponses = await this.services.llmService.promptModels(
+      // Stream responses with partial updates
+      const llmResponses = await this.services.llmService.streamPromptModels(
         message,
         councilMembers,
+        undefined,
+        {
+          onPartial: (model, partial, topic) => {
+            res.write(
+              `event: llmPartial\ndata: LLM Partial ${JSON.stringify({
+                model,
+                partial,
+                topic,
+              })}\n\n`,
+            );
+          },
+          onComplete: (response) => {
+            res.write(
+              `event: llmResponse\ndata: LLM Responses ${JSON.stringify({
+                prompt: response.prompt,
+                model: response.model,
+                topic: response.topic,
+                response: response.response,
+              })}\n\n`,
+            );
+          },
+          onError: (model, error) => {
+            res.write(
+              `event: llmError\ndata: LLM Error ${JSON.stringify({
+                model,
+                error,
+              })}\n\n`,
+            );
+          },
+        },
       );
 
-      for (const response of llmResponses) {
-        if (response) {
-          res.write(
-            `event: llmResponse\ndata: LLM Responses ${JSON.stringify({
-              prompt: response.prompt,
-              model: response.model,
-              topic: response.topic,
-              response: response.response,
-            })}\n\n`,
-          );
-        }
+      // Filter out null/undefined responses from failed models
+      const validResponses = llmResponses.filter((r): r is NonNullable<typeof r> => r != null);
+      
+      if (validResponses.length === 0) {
+        res.write(
+          `event: error\ndata: ${JSON.stringify({
+            error: "All LLM providers failed to respond. Please try again later.",
+          })}\n\n`,
+        );
+        res.end();
+        return;
       }
 
       const llmScores = await this.services.llmService.llmRepository.vote(
         {
           prompt: message,
         },
-        llmResponses,
+        validResponses,
         councilMembers,
       );
 
@@ -256,7 +318,7 @@ export default class ChatHandler {
         }
       }
 
-      const voteResult = calculateVote(llmResponses, llmScores);
+      const voteResult = calculateVote(validResponses, llmScores);
 
       if (!voteResult || !voteResult.prompt) {
         res.write(
@@ -306,27 +368,28 @@ export default class ChatHandler {
           });
 
         const userMessageId = userMessage.id;
-        await this.services.councilResponseService.saveResponses(
-          chat.id,
-          userMessageId,
-          llmResponses,
-          voteResult.model,
-        );
 
-        await this.services.chatService.chatRepository.addMessage({
-          chat_id: chat.id,
-          user_id: id,
-          role: "assistant",
-          content: voteResult.response,
-          model: voteResult.model,
-          parent_message_id: userMessageId,
-          branch_from_response_id: null,
-          branch_id: null,
-          is_active_branch: true,
-        });
+        await Promise.all([
+          this.services.councilResponseService.saveResponses(
+            chat.id,
+            userMessageId,
+            validResponses as Array<{ prompt: string; model: ModelName; topic?: string; response: string }>,
+            voteResult.model,
+          ),
+
+          this.services.chatService.chatRepository.addMessage({
+            chat_id: chat.id,
+            user_id: id,
+            role: "assistant",
+            content: voteResult.response,
+            model: voteResult.model,
+            parent_message_id: userMessageId,
+            branch_from_response_id: null,
+            branch_id: null,
+            is_active_branch: true,
+          }),
+        ]);
       }
-
-      console.log("Client closed connection");
 
       res.end();
     } catch (error) {
@@ -341,7 +404,7 @@ export default class ChatHandler {
     }
   };
 
-  async branchFromChat(req: Request, res: Response) {
+  private branchFromChat = async (req: Request, res: Response) => {
     const { message, chat_id, user_id, response_id } = req.body;
 
     const branchResponse =
@@ -386,7 +449,7 @@ export default class ChatHandler {
       });
 
     return { branch, assistantMessage, userMessage };
-  }
+  };
 
   private getChatBranches = async (req: Request, res: Response) => {
     const { id } = req.params as { id?: string };

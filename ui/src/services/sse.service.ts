@@ -5,6 +5,7 @@ const API_BASE_URL =
 
 export interface SSEEventHandlers {
   onLLMResponse?: (data: any) => void;
+  onLLMPartial?: (data: { model: string; partial: string; topic?: string }) => void;
   onLLMVote?: (data: any) => void;
   onVoteResponse?: (data: any) => void;
   onChatId?: (data: { chat_id: string }) => void;
@@ -82,7 +83,11 @@ export class SSEService {
               // e.g., "LLM Responses {json}" or "LLM Vote Scores {json}"
               let eventData: any;
               
-              if (dataStr.startsWith("LLM Responses ")) {
+              if (dataStr.startsWith("LLM Partial ")) {
+                const jsonStr = dataStr.substring(12);
+                eventData = JSON.parse(jsonStr);
+                handlers.onLLMPartial?.(eventData);
+              } else if (dataStr.startsWith("LLM Responses ")) {
                 const jsonStr = dataStr.substring(14);
                 eventData = JSON.parse(jsonStr);
                 

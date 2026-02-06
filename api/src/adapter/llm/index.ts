@@ -6,7 +6,12 @@ import {
 } from "@/domain/llm/entity";
 import { type Pool } from "pg";
 import type Secrets from "@/infrastructure/secrets";
-import { generateText as sdkGenerateText, Output, type ModelMessage } from "ai";
+import {
+  generateText as sdkGenerateText,
+  streamText as sdkStreamText,
+  Output,
+  type ModelMessage,
+} from "ai";
 import { openai } from "@ai-sdk/openai";
 import { google } from "@ai-sdk/google";
 import { anthropic } from "@ai-sdk/anthropic";
@@ -36,14 +41,73 @@ export default class LLMAdapter implements LLMRepository {
     this.pgPool = pgPool;
   }
 
+  async streamText<T = string>(
+    request: TextGenerationRequest,
+    output?: Output.Output<T>,
+    messageHistory?: ModelMessage[],
+    onChunk?: (partial: { text?: string; output?: T }) => void,
+  ): Promise<TextGenerationResponse<T> | undefined> {
+    const provider = this.modelRepository.getProviderByModelName(request.model);
+
+    if (!request.prompt) {
+      throw new BadRequestError("prompt is required");
+    }
+
+    const { partialOutputStream } = sdkStreamText({
+      model:
+        provider === "anthropic"
+          ? anthropic(request.model)
+          : provider === "openai"
+            ? openai(request.model)
+            : google(request.model),
+      messages: [
+        ...(messageHistory ?? []),
+        { role: "user", content: request.prompt },
+      ],
+      output,
+    });
+
+    // When using Output.object(), the stream emits the schema object directly
+    // So for schema { topic, response }, partialObject has { topic?, response? }
+    let lastOutput: T | null = null;
+
+    for await (const partialObject of partialOutputStream) {
+      // The partialObject IS the schema object directly (e.g., { topic, response })
+      lastOutput = partialObject as T;
+      
+      // Call the chunk callback if provided
+      if (onChunk) {
+        // Pass the partial object directly - it contains the schema fields
+        const partial = partialObject as { topic?: string; response?: string };
+        onChunk({
+          text: partial.response,
+          output: partialObject as T,
+        });
+      }
+    }
+
+    // Return the final complete result
+    if (lastOutput) {
+      // lastOutput IS the schema object (e.g., { topic, response })
+      const outputData = lastOutput as { topic?: string; response?: string };
+      
+      return {
+        prompt: request.prompt,
+        model: provider ? request.model : "unknown",
+        response: lastOutput, // The complete structured object
+        topic: outputData.topic,
+      };
+    }
+    
+    console.log(`[streamText] Model: ${request.model}, no lastOutput captured`);
+  }
+
   async generateText<T = string>(
     request: TextGenerationRequest,
     output?: Output.Output<T>,
     messageHistory?: ModelMessage[],
   ): Promise<TextGenerationResponse<T>> {
     const provider = this.modelRepository.getProviderByModelName(request.model);
-
-    console.log("inside generate text", request.model, provider);
 
     if (!request.prompt) {
       throw new BadRequestError("prompt is required");
@@ -95,7 +159,7 @@ export default class LLMAdapter implements LLMRepository {
 
     const votingPrompt = getVotingPrompt(originalPrompt, llmResponses);
 
-    console.log("voting in it council members", { councilMembers });
+    console.log("voting council members", { councilMembers });
 
     const llmScores = await Promise.all(
       councilMembers.map(async (member) => {

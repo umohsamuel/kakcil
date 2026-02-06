@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { QueryProvider } from "@/providers/query-provider";
+import { SSEStreamProvider } from "@/providers/sse-stream-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Bitcount_Grid_Double } from "next/font/google";
@@ -40,10 +41,15 @@ export default function RootLayout({
           // enableSystem
           disableTransitionOnChange
         >
-          <QueryProvider>{children}</QueryProvider>
+          <QueryProvider>
+            <SSEStreamProvider>
+              {children}
+            </SSEStreamProvider>
+          </QueryProvider>
           <Toaster />
         </ThemeProvider>
       </body>
     </html>
   );
 }
+

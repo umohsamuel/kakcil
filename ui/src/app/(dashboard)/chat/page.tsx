@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback, useEffectEvent } from "react";
+import { useState, useEffect, useCallback, useEffectEvent, useId } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ProtectedRoute } from "@/components/protected-route";
 import { useFlowSSEChat } from "@/hooks/use-sse-chat";
+import { useSSEStoreSync } from "@/hooks/use-sse-store-sync";
 import { FlowCanvas } from "@/components/flow-canvas";
 import { PanelRightOpen } from "lucide-react";
 import { toast } from "sonner";
@@ -21,6 +22,8 @@ type SidebarContent = {
 
 function ChatPageContent() {
   const queryClient = useQueryClient();
+  const streamId = useId();
+  const [currentMessage, setCurrentMessage] = useState("");
 
   const handleNewChatCreated = useCallback(
     (_chatId: string) => {
@@ -37,6 +40,12 @@ function ChatPageContent() {
     getRoundFromNodeId,
   } = useFlowSSEChat(undefined, { onNewChatCreated: handleNewChatCreated });
 
+  useSSEStoreSync({
+    streamId: flowState.chatId || streamId,
+    flowState,
+    message: currentMessage,
+  });
+
   const [input, setInput] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -48,6 +57,7 @@ function ChatPageContent() {
 
   const handleRetry = () => {
     if (flowState.userMessage) {
+      setCurrentMessage(flowState.userMessage);
       startStreaming(flowState.userMessage, flowState.chatId);
     }
   };
@@ -55,6 +65,7 @@ function ChatPageContent() {
   const handleStartChat = async () => {
     if (!input.trim() || flowState.isStreaming) return;
     const message = input.trim();
+    setCurrentMessage(message);
     setInput("");
     setSidebarOpen(true);
     try {

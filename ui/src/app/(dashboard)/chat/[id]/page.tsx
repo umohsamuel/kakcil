@@ -2,6 +2,7 @@
 import { useState, useEffect, useEffectEvent } from "react";
 import { ProtectedRoute } from "@/components/protected-route";
 import { useAuth } from "@/hooks/use-auth";
+import { useSSEStoreSync } from "@/hooks/use-sse-store-sync";
 import {
   useMessages,
   useBranchFromResponse,
@@ -25,6 +26,8 @@ function ChatDetailPageContent() {
   const searchParams = useSearchParams();
   const chatId = params.id as string;
   const branchId = searchParams.get("branch");
+  // Track current message for sync - use state so it triggers re-render for sync
+  const [currentMessage, setCurrentMessage] = useState("");
 
   const {
     messages,
@@ -44,6 +47,13 @@ function ChatDetailPageContent() {
     addBranchPoint,
     initializeFromMessages,
   } = useFlowSSEChat(chatId);
+
+  // Sync with global store for toast notifications
+  useSSEStoreSync({
+    streamId: chatId,
+    flowState,
+    message: currentMessage,
+  });
 
   const { branchFromResponseAsync, isBranching } =
     useBranchFromResponse(chatId);
@@ -120,6 +130,7 @@ function ChatDetailPageContent() {
   const handleSendMessage = async () => {
     if (!input.trim() || flowState.isStreaming) return;
     const message = input.trim();
+    setCurrentMessage(message);
     setInput("");
     setSidebarOpen(true);
     try {
@@ -150,11 +161,24 @@ function ChatDetailPageContent() {
     if (!selectedNodeId || !selectedModelNode || isBranching) return;
     const selectedContext = getSelectedContext();
     const parentPrompt = selectedContext?.prompt || flowState.userMessage;
+    
+    // Find the council response ID by looking up in messages' stored_council_responses
+    // We need to match the model name to get the actual UUID
+    const councilResponseId = messages
+      .flatMap((msg) => msg.stored_council_responses || [])
+      .find((cr) => cr.model === selectedModelNode.model)?.id;
+
+    if (!councilResponseId) {
+      toast.error("Could not find council response to branch from");
+      console.error("No council response found for model:", selectedModelNode.model);
+      return;
+    }
+
     try {
       const branchResult = await branchFromResponseAsync({
         message: "Continue from this response",
         chat_id: chatId,
-        response_id: selectedModelNode.model,
+        response_id: councilResponseId,
       });
       if (branchResult && branchResult.branch) {
         addBranchPoint(

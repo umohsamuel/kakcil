@@ -26,7 +26,7 @@ interface BranchPoint {
   parentResponse?: string;
 }
 
-interface FlowConversationState {
+export interface FlowConversationState {
   nodes: Node[];
   edges: Edge[];
   modelNodes: ModelNode[];
@@ -225,6 +225,88 @@ export function useFlowSSEChat(initialChatId?: string, options?: UseFlowSSEChatO
                 }));
 
                 // Create edges from current prompt to models with unique IDs
+                const modelEdges: Edge[] = updatedModelNodes.map((node) => ({
+                  id: `edge-${currentPromptId}-to-model-${node.model}-r${prev.conversationRound}`,
+                  source: currentPromptId,
+                  target: `model-${node.model}-r${prev.conversationRound}`,
+                  type: "smoothstep",
+                  animated: node.status === "generating",
+                }));
+
+                // Keep nodes that are NOT model nodes from this round
+                const nonModelNodes = prev.nodes.filter(n => 
+                  !n.id.startsWith(`model-`) || !n.id.endsWith(`-r${prev.conversationRound}`)
+                );
+                
+                // Keep edges that are NOT prompt-to-model edges from this round
+                const nonModelEdges = prev.edges.filter(e => 
+                  !e.id.startsWith(`edge-${currentPromptId}-to-model-`)
+                );
+
+                return {
+                  ...prev,
+                  modelNodes: updatedModelNodes,
+                  nodes: [...nonModelNodes, ...modelFlowNodes],
+                  edges: [...nonModelEdges, ...modelEdges],
+                  rounds: updatedRounds,
+                };
+              });
+            },
+            onLLMPartial: (data: { model: string; partial: string; topic?: string }) => {
+              setFlowState((prev) => {
+                const existingModelIndex = prev.modelNodes.findIndex(
+                  (node) => node.model === data.model
+                );
+
+                let updatedModelNodes: ModelNode[];
+                if (existingModelIndex >= 0) {
+                  // Update existing model with partial response
+                  updatedModelNodes = [...prev.modelNodes];
+                  updatedModelNodes[existingModelIndex] = {
+                    ...updatedModelNodes[existingModelIndex],
+                    status: "generating",
+                    response: data.partial,
+                    topic: data.topic,
+                  };
+                } else {
+                  // Add new model node with partial response
+                  updatedModelNodes = [
+                    ...prev.modelNodes,
+                    {
+                      model: data.model,
+                      status: "generating",
+                      response: data.partial,
+                      topic: data.topic,
+                    },
+                  ];
+                }
+
+                // Update round data
+                const updatedRounds = [...prev.rounds];
+                if (updatedRounds[prev.conversationRound]) {
+                  updatedRounds[prev.conversationRound] = {
+                    ...updatedRounds[prev.conversationRound],
+                    modelNodes: updatedModelNodes,
+                  };
+                }
+
+                // Calculate positions for model nodes in current round
+                const positions = calculateNodePositions(updatedModelNodes.length, prev.conversationRound);
+                const currentPromptId = `prompt-r${prev.conversationRound}`;
+
+                // Create model nodes for this round
+                const modelFlowNodes: Node[] = updatedModelNodes.map((node, idx) => ({
+                  id: `model-${node.model}-r${prev.conversationRound}`,
+                  type: "modelResponse",
+                  position: positions[idx],
+                  data: {
+                    model: node.model,
+                    status: node.status,
+                    hasResponse: !!node.response,
+                  },
+                }));
+
+                // Create edges from current prompt to models
                 const modelEdges: Edge[] = updatedModelNodes.map((node) => ({
                   id: `edge-${currentPromptId}-to-model-${node.model}-r${prev.conversationRound}`,
                   source: currentPromptId,
