@@ -3,13 +3,10 @@
 import {
   CheckCircle2,
   Loader2,
-  Circle,
   AlertCircle,
   MessageSquare,
 } from "lucide-react";
 import type { StreamPhase, ActiveStream } from "@/store/sse-stream";
-import { useEffect } from "react";
-import { toast } from "sonner";
 
 interface SSEProgressToastProps {
   stream: ActiveStream;
@@ -51,51 +48,7 @@ export function SSEProgressToast({
     }
   };
 
-  useEffect(() => {
-    if (isStreaming && !isError && !isComplete) {
-      if (phaseInfo.phase === "prompting") {
-        toast.promise<{ name: string }>(
-          () =>
-            new Promise((resolve) =>
-              setTimeout(() => resolve({ name: "Event" }), 2000)
-            ),
-          {
-            loading: "Loading...",
-            success: (data) => `${data.name} has been created`,
-            error: "Error",
-          }
-        );
-      }
-
-      if (phaseInfo.phase === "voting") {
-        toast.promise<{ name: string }>(
-          () =>
-            new Promise((resolve) =>
-              setTimeout(() => resolve({ name: "Event" }), 2000)
-            ),
-          {
-            loading: "Loading...",
-            success: (data) => `${data.name} has been created`,
-            error: "Error",
-          }
-        );
-      }
-
-      if (phaseInfo.phase === "aggregation") {
-        toast.promise<{ name: string }>(
-          () =>
-            new Promise((resolve) =>
-              setTimeout(() => resolve({ name: "Event" }), 2000)
-            ),
-          {
-            loading: "Loading...",
-            success: (data) => `${data.name} has been created`,
-            error: "Error",
-          }
-        );
-      }
-    }
-  }, [phaseInfo.phase]);
+  console.log(`phase info `, { phaseInfo });
 
   return (
     <div
@@ -126,15 +79,18 @@ export function SSEProgressToast({
       {/* Phase indicators - only show if still processing */}
       {isStreaming && !isError && !isComplete && (
         <div className="space-y-1.5 pt-1">
-          {PHASES.filter((p) => p.phase === phaseInfo.phase)?.map((step) => (
-            <PhaseIndicatorRow
-              key={step.phase}
-              step={step}
-              currentPhase={phaseInfo.phase}
-              completedModels={phaseInfo.completedModels}
-              modelCount={phaseInfo.modelCount}
-            />
-          ))}
+          {PHASES.map((step) => {
+            if (step.phase === phaseInfo.phase)
+              return (
+                <PhaseIndicatorRow
+                  key={step.phase}
+                  step={step}
+                  currentPhase={phaseInfo.phase}
+                  completedModels={phaseInfo.completedModels}
+                  modelCount={phaseInfo.modelCount}
+                />
+              );
+          })}
         </div>
       )}
     </div>

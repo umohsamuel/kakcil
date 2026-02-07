@@ -40,8 +40,8 @@ export const appMetadata: Metadata = {
     telephone: false,
   },
   icons: {
-    icon: "/logo-with-bg.png",
-    apple: "/logo-with-bg.png",
+    icon: "/images/logo-with-bg.jpg",
+    apple: "/images/logo-with-bg.jpg",
   },
   openGraph: {
     title: "Kakcil | The AI Council & Voting Platform",
@@ -52,7 +52,7 @@ export const appMetadata: Metadata = {
     locale: "en_US",
     images: [
       {
-        url: "/cover-photo.png",
+        url: "/images/logo-with-bg.jpg",
         width: 1200,
         height: 630,
         alt: "Kakcil AI Council Platform - Multi-model Voting",
@@ -68,7 +68,7 @@ export const appMetadata: Metadata = {
       "Ask once, get the consensus. Kakcil uses a council of AI models to vote on and deliver the best possible answer.",
     images: [
       {
-        url: "/cover-photo.png",
+        url: "/images/logo-with-bg.jpg",
         width: 1200,
         height: 630,
         alt: "Kakcil AI Council Platform",
