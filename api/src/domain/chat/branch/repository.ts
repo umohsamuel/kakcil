@@ -14,5 +14,16 @@ export default interface ChatBranchRepository {
     updates: Partial<Omit<IChatBranch, "id" | "chat_id" | "created_at">>,
   ): Promise<IChatBranch>;
 
-  deleteChatBranch(id: string): Promise<void>;
+  deleteChatBranch(id: string, user_id: string): Promise<void>;
+
+  getMainBranch(chatId: string): Promise<IChatBranch | null>;
+
+  setMainBranch(branchId: string, chatId: string): Promise<void>;
+
+  getBranchWithMessages(branchId: string): Promise<{
+    branch: IChatBranch;
+    messageCount: number;
+  } | null>;
+
+  deleteBranchWithMessages(branchId: string, user_id: string): Promise<void>;
 }

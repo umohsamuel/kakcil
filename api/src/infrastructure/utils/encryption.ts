@@ -13,7 +13,7 @@ const DUMMY_HASH =
 
 export const compareHash = async (
   password: string,
-  hash?: string
+  hash?: string,
 ): Promise<boolean> => {
   const safeHash = hash ?? DUMMY_HASH;
   return await bcrypt.compare(password, safeHash);
@@ -63,4 +63,21 @@ export const verifyRefreshToken = (token: string) => {
       throw error;
     }
   }
+};
+
+import CryptoJS from "crypto-js";
+
+export const encryptApiKey = (apiKey: string): string => {
+  const environmentVariables = new AppSecrets();
+
+  const encryptionKey = environmentVariables.encryptionKey;
+  return CryptoJS.AES.encrypt(apiKey, encryptionKey).toString();
+};
+
+export const decryptApiKey = (encryptedKey: string): string => {
+  const environmentVariables = new AppSecrets();
+
+  const encryptionKey = environmentVariables.encryptionKey;
+  const bytes = CryptoJS.AES.decrypt(encryptedKey, encryptionKey);
+  return bytes.toString(CryptoJS.enc.Utf8);
 };

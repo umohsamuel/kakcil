@@ -15,7 +15,7 @@ export default interface ChatRepository {
 
   update: (chat: Partial<IChat>) => Promise<IChat>;
 
-  delete: (id: string) => Promise<void>;
+  delete: (id: string, user_id: string) => Promise<void>;
 
   getMessages: (
     chat_id: string,

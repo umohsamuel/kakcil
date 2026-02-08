@@ -7,6 +7,7 @@ import { getPaginationParams } from "@/infrastructure/utils/pagination.ts";
 import type { ModelName } from "@/domain/model/entity.ts";
 import type Adapter from "@/adapter";
 import type Services from "@/service";
+import { CheckMessageLimit } from "../middlewares/rateLimiter";
 
 export default class ChatHandler {
   adapter: Adapter;
@@ -22,14 +23,16 @@ export default class ChatHandler {
   }
 
   private configureRoutes() {
-    this.router.post("/new", this.startNewChat);
-    this.router.post("/", this.sendMessageToChat);
-    this.router.post("/branch", this.branchFromChat);
+    this.router.post("/new", CheckMessageLimit, this.startNewChat);
+    this.router.post("/", CheckMessageLimit, this.sendMessageToChat);
+    this.router.post("/branch", CheckMessageLimit, this.branchFromChat);
 
     this.router.get("/", this.getChats);
     this.router.get("/:id/messages", this.getMessages);
     this.router.get("/:id/branches", this.getChatBranches);
     this.router.get("/branch/:branchId", this.getBranchWithParentContext);
+
+    this.router.delete("/:id", this.deleteChat);
   }
 
   private getChats = async (req: Request, res: Response) => {
@@ -128,12 +131,15 @@ export default class ChatHandler {
       );
 
       // Filter out null/undefined responses from failed models
-      const validResponses = llmResponses.filter((r): r is NonNullable<typeof r> => r != null);
-      
+      const validResponses = llmResponses.filter(
+        (r): r is NonNullable<typeof r> => r != null,
+      );
+
       if (validResponses.length === 0) {
         res.write(
           `event: error\ndata: ${JSON.stringify({
-            error: "All LLM providers failed to respond. Please try again later.",
+            error:
+              "All LLM providers failed to respond. Please try again later.",
           })}\n\n`,
         );
         res.end();
@@ -203,7 +209,12 @@ export default class ChatHandler {
       await this.services.councilResponseService.saveResponses(
         chat_id,
         userMessageId,
-        validResponses as Array<{ prompt: string; model: ModelName; topic?: string; response: string }>,
+        validResponses as Array<{
+          prompt: string;
+          model: ModelName;
+          topic?: string;
+          response: string;
+        }>,
         voteResult.model,
       );
 
@@ -285,12 +296,15 @@ export default class ChatHandler {
       );
 
       // Filter out null/undefined responses from failed models
-      const validResponses = llmResponses.filter((r): r is NonNullable<typeof r> => r != null);
-      
+      const validResponses = llmResponses.filter(
+        (r): r is NonNullable<typeof r> => r != null,
+      );
+
       if (validResponses.length === 0) {
         res.write(
           `event: error\ndata: ${JSON.stringify({
-            error: "All LLM providers failed to respond. Please try again later.",
+            error:
+              "All LLM providers failed to respond. Please try again later.",
           })}\n\n`,
         );
         res.end();
@@ -373,7 +387,12 @@ export default class ChatHandler {
           this.services.councilResponseService.saveResponses(
             chat.id,
             userMessageId,
-            validResponses as Array<{ prompt: string; model: ModelName; topic?: string; response: string }>,
+            validResponses as Array<{
+              prompt: string;
+              model: ModelName;
+              topic?: string;
+              response: string;
+            }>,
             voteResult.model,
           ),
 
@@ -448,7 +467,11 @@ export default class ChatHandler {
         is_active_branch: true,
       });
 
-    return { branch, assistantMessage, userMessage };
+    return new SuccessResponse(res, {
+      branch,
+      assistantMessage,
+      userMessage,
+    }).send();
   };
 
   private getChatBranches = async (req: Request, res: Response) => {
@@ -518,6 +541,16 @@ export default class ChatHandler {
             content: parentResponse.content,
           }
         : null,
+    }).send();
+  };
+
+  private deleteChat = async (req: Request, res: Response) => {
+    const { id, user_id } = req.params as { id: string; user_id: string };
+
+    await this.services.chatService.chatRepository.delete(id, user_id);
+
+    return new SuccessResponse(res, {
+      message: "Chat deleted successfully",
     }).send();
   };
 }

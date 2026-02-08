@@ -1,6 +1,7 @@
 import type { Pool } from "pg";
 import type ChatBranchRepository from "@/domain/chat/branch/repository.ts";
 import type { IChatBranch } from "@/domain/chat/branch/entity.ts";
+import { BadRequestError } from "@/infrastructure/errors/badRequest";
 
 export default class ChatBranchAdapter implements ChatBranchRepository {
   pgPool: Pool;
@@ -138,16 +139,20 @@ export default class ChatBranchAdapter implements ChatBranchRepository {
     return result.rows[0];
   }
 
-  async deleteChatBranch(id: string): Promise<void> {
+  async deleteChatBranch(id: string, user_id: string): Promise<void> {
+    if (!id || !user_id) {
+      throw new BadRequestError("Missing required fields");
+    }
+
     const query = `
       DELETE FROM chat_branches
-      WHERE id = $1
+      WHERE id = $1 AND user_id = $2
     `;
 
-    const result = await this.pgPool.query(query, [id]);
+    const result = await this.pgPool.query(query, [id, user_id]);
 
     if (result.rowCount === 0) {
-      throw new Error("Chat branch not found");
+      throw new BadRequestError("Chat branch not found");
     }
   }
 
@@ -226,15 +231,19 @@ export default class ChatBranchAdapter implements ChatBranchRepository {
     };
   }
 
-  async deleteBranchWithMessages(branchId: string): Promise<void> {
+  async deleteBranchWithMessages(
+    branchId: string,
+    user_id: string,
+  ): Promise<void> {
     const client = await this.pgPool.connect();
 
     try {
       await client.query("BEGIN");
 
-      await client.query(`DELETE FROM chat_messages WHERE branch_id = $1`, [
-        branchId,
-      ]);
+      await client.query(
+        `DELETE FROM chat_messages WHERE branch_id = $1 AND user_id = $2`,
+        [branchId, user_id],
+      );
 
       await client.query(`DELETE FROM chat_branches WHERE id = $1`, [branchId]);
 

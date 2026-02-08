@@ -44,6 +44,7 @@ export default class Secrets {
   jwtSecret: string;
   refreshJWTExpires: number;
   refreshJWTSecret: string;
+  encryptionKey: string;
 
   // cloudinaryCredentials: CloundinaryCredentials;
   dbConnectionCredentials: DBConnectionCredentials;
@@ -70,6 +71,8 @@ export default class Secrets {
       2592000,
     );
     this.refreshJWTSecret = this.getEnvironmentVariable("REFRESH_JWT_SECRET");
+
+    this.encryptionKey = this.getEnvironmentVariable("ENCRYPTION_KEY");
 
     // this.cloudinaryCredentials = {
     //   cloudName: this.getEnvironmentVariable("CLOUDINARY_CLOUD_NAME"),

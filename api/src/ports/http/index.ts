@@ -16,6 +16,7 @@ import AuthenticationHandler from "./handlers/authentication";
 import { Authorize } from "./middlewares/authorization";
 import ChatHandler from "./handlers/chat";
 import CouncilHandler from "@/ports/http/handlers/council.ts";
+import ApiKeyHandler from "./handlers/api_key";
 
 export default class ExpressHTTP {
   secrets: Secrets;
@@ -50,6 +51,7 @@ export default class ExpressHTTP {
     this.user();
     this.chat();
     this.council();
+    this.apiKey();
 
     this.testPoolConnection();
 
@@ -116,6 +118,15 @@ export default class ExpressHTTP {
     const router = new CouncilHandler(this.services.councilService);
     this.router.use(
       "/council",
+      Authorize(this.services.authenticationService),
+      router.router,
+    );
+  }
+
+  apiKey() {
+    const router = new ApiKeyHandler(this.adapter, this.services);
+    this.router.use(
+      "/api-key",
       Authorize(this.services.authenticationService),
       router.router,
     );

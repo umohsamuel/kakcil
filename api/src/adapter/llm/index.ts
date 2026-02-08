@@ -22,23 +22,27 @@ import { type LMMScore } from "@/infrastructure/utils/vote.ts";
 import type ModelRepository from "@/domain/model/repository.ts";
 import type CouncilRepository from "@/domain/council/repository.ts";
 import type { CouncilMember } from "@/domain/council/entity.ts";
+import type UserApiKeyRepository from "@/domain/user/api_key/repository";
 
 export default class LLMAdapter implements LLMRepository {
   secrets: Secrets;
   pgPool: Pool;
   modelRepository: ModelRepository;
   councilRepository: CouncilRepository;
+  userApiKeyRepository: UserApiKeyRepository;
 
   constructor(
     pgPool: Pool,
     secrets: Secrets,
     modelRepository: ModelRepository,
     councilRepository: CouncilRepository,
+    userApiKeyRepository: UserApiKeyRepository,
   ) {
     this.modelRepository = modelRepository;
     this.councilRepository = councilRepository;
     this.secrets = secrets;
     this.pgPool = pgPool;
+    this.userApiKeyRepository = userApiKeyRepository;
   }
 
   async streamText<T = string>(
@@ -48,6 +52,10 @@ export default class LLMAdapter implements LLMRepository {
     onChunk?: (partial: { text?: string; output?: T }) => void,
   ): Promise<TextGenerationResponse<T> | undefined> {
     const provider = this.modelRepository.getProviderByModelName(request.model);
+    // const apiKey = await this.userApiKeyRepository.getActiveKeyByProvider(
+    //   request.user_id,
+    //   provider!,
+    // );
 
     if (!request.prompt) {
       throw new BadRequestError("prompt is required");
@@ -74,7 +82,7 @@ export default class LLMAdapter implements LLMRepository {
     for await (const partialObject of partialOutputStream) {
       // The partialObject IS the schema object directly (e.g., { topic, response })
       lastOutput = partialObject as T;
-      
+
       // Call the chunk callback if provided
       if (onChunk) {
         // Pass the partial object directly - it contains the schema fields
@@ -90,7 +98,7 @@ export default class LLMAdapter implements LLMRepository {
     if (lastOutput) {
       // lastOutput IS the schema object (e.g., { topic, response })
       const outputData = lastOutput as { topic?: string; response?: string };
-      
+
       return {
         prompt: request.prompt,
         model: provider ? request.model : "unknown",
@@ -98,7 +106,7 @@ export default class LLMAdapter implements LLMRepository {
         topic: outputData.topic,
       };
     }
-    
+
     console.log(`[streamText] Model: ${request.model}, no lastOutput captured`);
   }
 

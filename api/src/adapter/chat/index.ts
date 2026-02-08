@@ -61,7 +61,6 @@ export default class ChatAdapter implements ChatRepository {
 
     const fields: string[] = [];
     const values: unknown[] = [];
-    let index = 1;
 
     if (chat.title !== undefined) {
       fields.push(`title`);
@@ -91,7 +90,7 @@ export default class ChatAdapter implements ChatRepository {
   }
 
   async update(chat: Partial<IChat>): Promise<IChat> {
-    if (!chat.id) {
+    if (!chat.id || !chat.user_id) {
       throw new BadRequestError("Chat ID is required for update");
     }
 
@@ -117,9 +116,10 @@ export default class ChatAdapter implements ChatRepository {
     }
 
     values.push(chat.id);
+    values.push(chat.user_id);
 
     const query = `
-    UPDATE chats SET ${fields.join(", ")} WHERE id = $${index} RETURNING *;
+    UPDATE chats SET ${fields.join(", ")} WHERE id = $${index} AND user_id = $${index + 1} RETURNING *;
   `;
 
     const result = await this.pgPool.query(query, values);
@@ -131,16 +131,16 @@ export default class ChatAdapter implements ChatRepository {
     return result.rows[0] as IChat;
   }
 
-  async delete(id: string): Promise<void> {
-    if (!id) {
-      throw new BadRequestError("Chat ID is required for delete");
+  async delete(id: string, user_id: string): Promise<void> {
+    if (!id || !user_id) {
+      throw new BadRequestError("Missing required fields");
     }
 
     const query = `
-    DELETE FROM chats WHERE id = $1;
+    DELETE FROM chats WHERE id = $1 AND user_id = $2;
     `;
 
-    await this.pgPool.query(query, [id]);
+    await this.pgPool.query(query, [id, user_id]);
   }
 
   async getMessages(
