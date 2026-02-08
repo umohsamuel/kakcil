@@ -14,6 +14,6 @@ export default interface UserApiKeyRepository {
 
   getActiveKeyByProvider: (
     user_id: string,
-    provider: AIProvider,
+    provider?: AIProvider,
   ) => Promise<UserApiKey | null>;
 }

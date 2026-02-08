@@ -24,7 +24,7 @@ export default class UserApiKeyAdapter implements UserApiKeyRepository {
     const result = await this.pgPool.query<UserApiKey>(query, [user_id]);
 
     if (result.rows.length < 1) {
-      throw new BadRequestError("User not found.");
+      throw new BadRequestError("No API keys found for this user.");
     }
 
     return result.rows;
@@ -141,8 +141,12 @@ export default class UserApiKeyAdapter implements UserApiKeyRepository {
 
   async getActiveKeyByProvider(
     user_id: string,
-    provider: AIProvider,
+    provider?: AIProvider,
   ): Promise<UserApiKey | null> {
+    if (!user_id || !provider) {
+      throw new BadRequestError("User ID and Provider are required");
+    }
+
     const query = `SELECT * FROM user_api_keys 
        WHERE user_id = $1 AND provider = $2 AND is_active = true
        LIMIT 1`;

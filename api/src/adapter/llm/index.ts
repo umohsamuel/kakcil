@@ -12,9 +12,9 @@ import {
   Output,
   type ModelMessage,
 } from "ai";
-import { openai } from "@ai-sdk/openai";
-import { google } from "@ai-sdk/google";
-import { anthropic } from "@ai-sdk/anthropic";
+import { createOpenAI, openai } from "@ai-sdk/openai";
+import { createGoogleGenerativeAI, google } from "@ai-sdk/google";
+import { anthropic, createAnthropic } from "@ai-sdk/anthropic";
 import type LLMRepository from "@/domain/llm/repository";
 import { BadRequestError } from "@/infrastructure/errors/badRequest";
 import { getVotingPrompt } from "@/infrastructure/llm/prompts/vote.ts";
@@ -23,6 +23,7 @@ import type ModelRepository from "@/domain/model/repository.ts";
 import type CouncilRepository from "@/domain/council/repository.ts";
 import type { CouncilMember } from "@/domain/council/entity.ts";
 import type UserApiKeyRepository from "@/domain/user/api_key/repository";
+import { decryptApiKey } from "@/infrastructure/utils/encryption";
 
 export default class LLMAdapter implements LLMRepository {
   secrets: Secrets;
@@ -47,27 +48,60 @@ export default class LLMAdapter implements LLMRepository {
 
   async streamText<T = string>(
     request: TextGenerationRequest,
+    user_id: string,
     output?: Output.Output<T>,
     messageHistory?: ModelMessage[],
     onChunk?: (partial: { text?: string; output?: T }) => void,
   ): Promise<TextGenerationResponse<T> | undefined> {
     const provider = this.modelRepository.getProviderByModelName(request.model);
-    // const apiKey = await this.userApiKeyRepository.getActiveKeyByProvider(
-    //   request.user_id,
-    //   provider!,
-    // );
+    const userApiKey = await this.userApiKeyRepository.getActiveKeyByProvider(
+      user_id,
+      provider ?? undefined,
+    );
 
     if (!request.prompt) {
       throw new BadRequestError("prompt is required");
     }
 
+    let model;
+
+    if (provider === "anthropic") {
+      if (userApiKey?.encrypted_key) {
+        const customAnthropic = createAnthropic({
+          apiKey: decryptApiKey(userApiKey?.encrypted_key),
+        });
+        console.log("using custom anthropic");
+
+        model = customAnthropic(request.model);
+      } else {
+        model = anthropic(request.model);
+      }
+    } else if (provider === "openai") {
+      if (userApiKey?.encrypted_key) {
+        const customOpenAI = createOpenAI({
+          apiKey: decryptApiKey(userApiKey?.encrypted_key),
+        });
+        console.log("using custom openai");
+        model = customOpenAI(request.model);
+      } else {
+        model = openai(request.model);
+      }
+    } else if (provider === "google") {
+      if (userApiKey?.encrypted_key) {
+        const customGoogle = createGoogleGenerativeAI({
+          apiKey: decryptApiKey(userApiKey?.encrypted_key),
+        });
+        console.log("using custom google");
+        model = customGoogle(request.model);
+      } else {
+        model = google(request.model);
+      }
+    } else {
+      throw new BadRequestError(`Unsupported provider: ${provider}`);
+    }
+
     const { partialOutputStream } = sdkStreamText({
-      model:
-        provider === "anthropic"
-          ? anthropic(request.model)
-          : provider === "openai"
-            ? openai(request.model)
-            : google(request.model),
+      model,
       messages: [
         ...(messageHistory ?? []),
         { role: "user", content: request.prompt },
@@ -75,17 +109,12 @@ export default class LLMAdapter implements LLMRepository {
       output,
     });
 
-    // When using Output.object(), the stream emits the schema object directly
-    // So for schema { topic, response }, partialObject has { topic?, response? }
     let lastOutput: T | null = null;
 
     for await (const partialObject of partialOutputStream) {
-      // The partialObject IS the schema object directly (e.g., { topic, response })
       lastOutput = partialObject as T;
 
-      // Call the chunk callback if provided
       if (onChunk) {
-        // Pass the partial object directly - it contains the schema fields
         const partial = partialObject as { topic?: string; response?: string };
         onChunk({
           text: partial.response,
@@ -94,20 +123,16 @@ export default class LLMAdapter implements LLMRepository {
       }
     }
 
-    // Return the final complete result
     if (lastOutput) {
-      // lastOutput IS the schema object (e.g., { topic, response })
       const outputData = lastOutput as { topic?: string; response?: string };
 
       return {
         prompt: request.prompt,
         model: provider ? request.model : "unknown",
-        response: lastOutput, // The complete structured object
+        response: lastOutput,
         topic: outputData.topic,
       };
     }
-
-    console.log(`[streamText] Model: ${request.model}, no lastOutput captured`);
   }
 
   async generateText<T = string>(

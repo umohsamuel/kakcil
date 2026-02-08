@@ -1,8 +1,14 @@
-import type { SubscriptionLimits, SubscriptionTier } from "./entity";
+import type {
+  SubscriptionLimits,
+  SubscriptionTier,
+  SubscriptionStatus,
+} from "./entity";
 import type Subscription from "./entity";
 
 export default interface SubscriptionRepository {
-  create(subscription: Subscription): Promise<Subscription>;
+  create(
+    subscription: Omit<Subscription, "id" | "created_at" | "updated_at">,
+  ): Promise<Subscription>;
 
   update(
     subscription: Partial<Subscription> & { id: string },
@@ -13,6 +19,8 @@ export default interface SubscriptionRepository {
   findById(id: string): Promise<Subscription | null>;
 
   findByUserId(user_id: string): Promise<Subscription | null>;
+
+  findByPaystackSubscriptionCode(code: string): Promise<Subscription | null>;
 
   getUserTier(userId: string): Promise<SubscriptionTier>;
 
@@ -36,8 +44,16 @@ export default interface SubscriptionRepository {
 
   updateSubscriptionStatus(
     subscriptionId: string,
-    status: Subscription["status"],
+    status: SubscriptionStatus,
   ): Promise<void>;
 
   updateUserTier(userId: string, tier: SubscriptionTier): Promise<void>;
+
+  cancelSubscription(userId: string): Promise<void>;
+
+  getPlanByCode(planCode: string): Promise<{
+    id: string;
+    tier: SubscriptionTier;
+    amount: number;
+  } | null>;
 }

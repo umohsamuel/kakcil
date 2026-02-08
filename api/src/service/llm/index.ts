@@ -12,6 +12,7 @@ export default class LLMService {
 
   async promptModels(
     prompt: string,
+    user_id: string,
     councilMembers: CouncilMember[],
     messageHistory?: ModelMessage[],
   ) {
@@ -30,6 +31,7 @@ export default class LLMService {
               prompt,
               model: member.model_name,
             },
+            user_id,
             Output.object({
               schema,
             }),
@@ -61,6 +63,7 @@ export default class LLMService {
    */
   async streamPromptModels(
     prompt: string,
+    user_id: string,
     councilMembers: CouncilMember[],
     messageHistory: ModelMessage[] | undefined,
     callbacks: {
@@ -73,7 +76,14 @@ export default class LLMService {
       }) => void;
       onError: (model: string, error: string) => void;
     },
-  ): Promise<Array<{ prompt: string; model: string; topic: string; response: string } | null>> {
+  ): Promise<
+    Array<{
+      prompt: string;
+      model: string;
+      topic: string;
+      response: string;
+    } | null>
+  > {
     const schema = z.object({
       topic: z.string(),
       response: z.string(),
@@ -89,6 +99,7 @@ export default class LLMService {
               prompt,
               model: member.model_name,
             },
+            user_id,
             Output.object({
               schema,
             }),
@@ -109,7 +120,10 @@ export default class LLMService {
 
           if (result && result.response) {
             // result.response is the structured object {topic, response}
-            const responseData = result.response as { topic: string; response: string };
+            const responseData = result.response as {
+              topic: string;
+              response: string;
+            };
             const response = {
               prompt,
               model: member.model_name,
@@ -140,4 +154,3 @@ export default class LLMService {
     return results;
   }
 }
-

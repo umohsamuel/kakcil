@@ -17,6 +17,8 @@ import { Authorize } from "./middlewares/authorization";
 import ChatHandler from "./handlers/chat";
 import CouncilHandler from "@/ports/http/handlers/council.ts";
 import ApiKeyHandler from "./handlers/api_key";
+import SubscriptionHandler from "./handlers/subscription";
+import WebhookHandler from "./handlers/webhook/paystack";
 
 export default class ExpressHTTP {
   secrets: Secrets;
@@ -130,5 +132,20 @@ export default class ExpressHTTP {
       Authorize(this.services.authenticationService),
       router.router,
     );
+  }
+
+  subscription() {
+    const router = new SubscriptionHandler(this.adapter, this.services);
+    this.router.use(
+      "/subscription",
+      Authorize(this.services.authenticationService),
+      router.router,
+    );
+  }
+
+  webhook() {
+    this.router.use("/webhook", express.raw({ type: "application/json" }));
+    const router = new WebhookHandler(this.adapter, this.services);
+    this.router.use("/webhook", router.router);
   }
 }

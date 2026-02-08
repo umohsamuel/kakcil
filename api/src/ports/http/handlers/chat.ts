@@ -23,9 +23,21 @@ export default class ChatHandler {
   }
 
   private configureRoutes() {
-    this.router.post("/new", CheckMessageLimit, this.startNewChat);
-    this.router.post("/", CheckMessageLimit, this.sendMessageToChat);
-    this.router.post("/branch", CheckMessageLimit, this.branchFromChat);
+    this.router.post(
+      "/new",
+      CheckMessageLimit(this.adapter),
+      this.startNewChat,
+    );
+    this.router.post(
+      "/",
+      CheckMessageLimit(this.adapter),
+      this.sendMessageToChat,
+    );
+    this.router.post(
+      "/branch",
+      CheckMessageLimit(this.adapter),
+      this.branchFromChat,
+    );
 
     this.router.get("/", this.getChats);
     this.router.get("/:id/messages", this.getMessages);
@@ -97,6 +109,7 @@ export default class ChatHandler {
       // Stream responses with partial updates
       const llmResponses = await this.services.llmService.streamPromptModels(
         message,
+        id,
         councilMembers,
         messageHistory,
         {
@@ -262,6 +275,7 @@ export default class ChatHandler {
       // Stream responses with partial updates
       const llmResponses = await this.services.llmService.streamPromptModels(
         message,
+        id,
         councilMembers,
         undefined,
         {

@@ -45,6 +45,7 @@ export default class Secrets {
   refreshJWTExpires: number;
   refreshJWTSecret: string;
   encryptionKey: string;
+  payStackSecretKey: string;
 
   // cloudinaryCredentials: CloundinaryCredentials;
   dbConnectionCredentials: DBConnectionCredentials;
@@ -73,6 +74,8 @@ export default class Secrets {
     this.refreshJWTSecret = this.getEnvironmentVariable("REFRESH_JWT_SECRET");
 
     this.encryptionKey = this.getEnvironmentVariable("ENCRYPTION_KEY");
+
+    this.payStackSecretKey = this.getEnvironmentVariable("PAYSTACK_SECRET_KEY");
 
     // this.cloudinaryCredentials = {
     //   cloudName: this.getEnvironmentVariable("CLOUDINARY_CLOUD_NAME"),

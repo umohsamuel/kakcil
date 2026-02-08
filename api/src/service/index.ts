@@ -5,6 +5,7 @@ import ChatService from "./chat";
 import LLMService from "@/service/llm";
 import CouncilService from "@/service/council";
 import CouncilResponseService from "@/service/council/response";
+import PaymentService from "./payment";
 
 export default class Services {
   userService: UserService;
@@ -13,6 +14,7 @@ export default class Services {
   chatService: ChatService;
   councilService: CouncilService;
   councilResponseService: CouncilResponseService;
+  paymentService: PaymentService;
   adapter: Adapter;
 
   constructor(adapter: Adapter) {
@@ -32,6 +34,7 @@ export default class Services {
       adapter.councilResponseAdapter,
       adapter.modelAdapter,
     );
+    this.paymentService = new PaymentService(adapter);
     this.adapter = adapter;
   }
 }
