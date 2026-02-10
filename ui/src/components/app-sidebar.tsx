@@ -3,10 +3,12 @@
 import { useAuthStore } from "@/store/auth.store";
 import { useAuth } from "@/hooks/use-auth";
 import { useChats } from "@/hooks/use-chats";
+import { useSubscription } from "@/hooks/use-subscription";
+import { useDeleteChat } from "@/hooks/use-delete-chat";
 import { usePathname, useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import {
   LogOut,
   Settings,
@@ -15,6 +17,8 @@ import {
   X,
   BadgeCheck,
   ChevronsUpDown,
+  Crown,
+  Trash2,
 } from "lucide-react";
 import {
   Sidebar,
@@ -30,6 +34,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
+import { SubscriptionBadge } from "@/components/subscription-badge";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -51,6 +56,9 @@ export function AppSidebar() {
   const currentChatId = params.id ?? ("" as string);
   const { chats, isLoading, error } = useChats();
   const { isMobile, setOpenMobile } = useSidebar();
+  const { tier } = useSubscription();
+  const { deleteChat, isDeleting } = useDeleteChat();
+  const [deletingChatId, setDeletingChatId] = useState<string | null>(null);
 
   const handleNewChat = useCallback(() => {
     if (pathname === "/chat" && !currentChatId) {
@@ -63,6 +71,24 @@ export function AppSidebar() {
 
   const handleNavigation = () => {
     if (isMobile) setOpenMobile(false);
+  };
+
+  const handleDeleteChat = (
+    e: React.MouseEvent,
+    chatId: string,
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDeletingChatId(chatId);
+    deleteChat(chatId, {
+      onSettled: () => {
+        setDeletingChatId(null);
+        // If we deleted the current chat, navigate away
+        if (currentChatId === chatId) {
+          router.push("/chat");
+        }
+      },
+    });
   };
 
   return (
@@ -114,6 +140,19 @@ export function AppSidebar() {
                 <span>New Chat</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                isActive={pathname === "/subscription"}
+                tooltip="Subscription"
+                onClick={handleNavigation}
+              >
+                <Link href="/subscription">
+                  <Crown className="h-4 w-4" />
+                  <span>Subscription</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
           </SidebarMenu>
         </SidebarGroup>
         <SidebarGroup>
@@ -140,13 +179,13 @@ export function AppSidebar() {
               {!isLoading &&
                 !error &&
                 chats.map((chat) => (
-                  <SidebarMenuItem key={chat.id}>
+                  <SidebarMenuItem key={chat.id} className="group/chat">
                     <SidebarMenuButton
                       asChild
                       isActive={currentChatId === chat.id}
                       tooltip={chat.title || "Untitled Chat"}
                       onClick={handleNavigation}
-                      className="hover:bg-background/60"
+                      className="hover:bg-background/60 pr-8"
                     >
                       <Link
                         href={`/chat/${encodeURIComponent(chat.id)}`}
@@ -157,6 +196,19 @@ export function AppSidebar() {
                         </span>
                       </Link>
                     </SidebarMenuButton>
+                    {/* Delete button on hover */}
+                    <button
+                      onClick={(e) => handleDeleteChat(e, chat.id)}
+                      disabled={isDeleting && deletingChatId === chat.id}
+                      className="absolute right-1 top-1/2 -translate-y-1/2 rounded p-1 opacity-0 transition-opacity hover:bg-red-500/20 group-hover/chat:opacity-100 group-data-[collapsible=icon]:hidden"
+                      title="Delete chat"
+                    >
+                      {isDeleting && deletingChatId === chat.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-red-400" />
+                      ) : (
+                        <Trash2 className="h-3.5 w-3.5 text-red-400" />
+                      )}
+                    </button>
                   </SidebarMenuItem>
                 ))}
             </SidebarMenu>
@@ -197,7 +249,10 @@ export function AppSidebar() {
                   </Avatar>
                   <div className="grid flex-1 text-left text-sm leading-tight">
                     <span className="truncate font-medium">{user?.name}</span>
-                    <span className="truncate text-xs">{user?.email}</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="truncate text-xs">{user?.email}</span>
+                      <SubscriptionBadge tier={tier} size="sm" />
+                    </div>
                   </div>
                   <ChevronsUpDown className="ml-auto size-4" />
                 </SidebarMenuButton>
@@ -223,6 +278,7 @@ export function AppSidebar() {
                       <span className="truncate font-medium">{user?.name}</span>
                       <span className="truncate text-xs">{user?.email}</span>
                     </div>
+                    <SubscriptionBadge tier={tier} size="sm" />
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
@@ -233,12 +289,15 @@ export function AppSidebar() {
                     <BadgeCheck />
                     Account
                   </DropdownMenuItem>
-                  {/* <DropdownMenuItem
+                  <DropdownMenuItem
                     className={`hover:bg-background hover:text-foreground cursor-pointer`}
+                    asChild
                   >
-                    <CreditCard />
-                    Billing
-                  </DropdownMenuItem> */}
+                    <Link href="/subscription">
+                      <Crown />
+                      Subscription
+                    </Link>
+                  </DropdownMenuItem>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem

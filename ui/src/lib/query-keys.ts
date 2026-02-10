@@ -36,5 +36,14 @@ export const queryKeys = {
     members: () => [...queryKeys.council.all, "members"] as const,
     models: () => [...queryKeys.council.all, "models"] as const,
   },
+  subscription: {
+    all: ["subscription"] as const,
+    status: () => [...queryKeys.subscription.all, "status"] as const,
+    plans: () => [...queryKeys.subscription.all, "plans"] as const,
+  },
+  apiKeys: {
+    all: ["apiKeys"] as const,
+    list: () => [...queryKeys.apiKeys.all, "list"] as const,
+  },
 } as const;
 

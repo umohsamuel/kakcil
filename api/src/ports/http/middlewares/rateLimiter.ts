@@ -28,7 +28,13 @@ export const CheckMessageLimit = (adapter: Adapter, _services: Services) => {
       const limitCheck =
         await adapter.subscriptionAdapter.checkMessageLimit(id);
 
-      if (!limitCheck.allowed && !activeByokKeys) {
+      console.log(
+        "limit check and active byok keys",
+        limitCheck,
+        activeByokKeys,
+      );
+
+      if (!limitCheck.allowed && activeByokKeys && activeByokKeys.length < 1) {
         return new ErrorResponse(
           res,
           "Rate limit exceeded",

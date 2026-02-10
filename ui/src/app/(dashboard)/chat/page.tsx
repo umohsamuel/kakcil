@@ -12,6 +12,7 @@ import { Node } from "reactflow";
 import { queryKeys } from "@/lib/query-keys";
 import { InitialChatView } from "@/components/chat/initial-chat-view";
 import { ChatResponseSidebar } from "@/components/chat/chat-response-sidebar";
+import { RateLimitModal } from "@/components/rate-limit-modal";
 
 type SidebarContent = {
   title: string;
@@ -38,6 +39,8 @@ function ChatPageContent() {
     onEdgesChange,
     startStreaming,
     getRoundFromNodeId,
+    rateLimitError,
+    clearRateLimitError,
   } = useFlowSSEChat(undefined, { onNewChatCreated: handleNewChatCreated });
 
   useSSEStoreSync({
@@ -230,6 +233,11 @@ function ChatPageContent() {
         onRetry={handleRetry}
         mobileShowSidebar={mobileShowSidebar}
         onMobileBack={() => setMobileShowSidebar(false)}
+      />
+      <RateLimitModal
+        open={!!rateLimitError}
+        onClose={clearRateLimitError}
+        rateLimitData={rateLimitError}
       />
     </div>
   );

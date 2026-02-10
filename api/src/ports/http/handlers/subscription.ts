@@ -59,8 +59,6 @@ export default class SubscriptionHandler {
       reference as string,
     );
 
-    console.log("response from paystack", { response });
-
     if (response.data.status === "success") {
       await this.adapter.subscriptionAdapter.baseStorePaymentForWebhookToCreateSubscription(
         email,

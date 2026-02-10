@@ -5,10 +5,11 @@
  * persistent streaming state across navigation. It wraps the SSE service
  * and syncs state to the global store.
  */
-import { useCallback, useRef, useEffect } from "react";
+import { useCallback, useRef, useEffect, useState } from "react";
 import { sseService } from "@/services/sse.service";
 import { useSSEStreamStore, type StreamPhase, type PersistentFlowState } from "@/store/sse-stream";
 import type { LLMResponseEvent, LLMVoteEvent, VoteResponseEvent, ModelNode } from "@/types/chat";
+import type { RateLimitError } from "@/types/subscription";
 
 interface UseGlobalSSEChatOptions {
   /** Callback when a new chat is created (receives chatId from backend) */
@@ -17,6 +18,8 @@ interface UseGlobalSSEChatOptions {
   onComplete?: () => void;
   /** Callback when error occurs */
   onError?: (error: string) => void;
+  /** Callback when rate limited */
+  onRateLimited?: (data: RateLimitError) => void;
 }
 
 /**
@@ -32,6 +35,7 @@ export function useGlobalSSEChat(
 ) {
   const abortControllerRef = useRef<AbortController | null>(null);
   const currentStreamIdRef = useRef<string | null>(null);
+  const [rateLimitError, setRateLimitError] = useState<RateLimitError | null>(null);
 
   // Store actions
   const startStream = useSSEStreamStore((s) => s.startStream);
@@ -59,6 +63,9 @@ export function useGlobalSSEChat(
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
+
+      // Clear any previous rate limit error
+      setRateLimitError(null);
 
       abortControllerRef.current = new AbortController();
 
@@ -184,8 +191,22 @@ export function useGlobalSSEChat(
         );
       } catch (error: any) {
         if (error.name !== "AbortError") {
-          errorStream(streamId, error.message || "Stream failed");
-          options?.onError?.(error.message);
+          // Check for rate limit error (429)
+          if (error.response?.status === 429) {
+            const rateLimitData: RateLimitError = error.response?.data?.data || {
+              error: "Rate limit exceeded",
+              message: error.response?.data?.message || "You've reached your message limit.",
+              limits: { messagesPerDay: 0, messagesPerMonth: 0, maxCouncilMembers: 0, canUseAdvancedModels: false },
+              usage: { daily: 0, monthly: 0 },
+              upgradeUrl: "/subscription",
+            };
+            setRateLimitError(rateLimitData);
+            errorStream(streamId, "Rate limit exceeded");
+            options?.onRateLimited?.(rateLimitData);
+          } else {
+            errorStream(streamId, error.message || "Stream failed");
+            options?.onError?.(error.message);
+          }
         }
       }
     },
@@ -239,6 +260,10 @@ export function useGlobalSSEChat(
     cancelStream,
     /** Get the actual chat ID (may differ from stream ID for new chats) */
     getChatId: () => currentStream?.chatId,
+    /** Rate limit error data (non-null when rate limited) */
+    rateLimitError,
+    /** Clear rate limit error */
+    clearRateLimitError: () => setRateLimitError(null),
   };
 }
 

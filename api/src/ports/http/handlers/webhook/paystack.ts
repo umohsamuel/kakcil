@@ -176,6 +176,11 @@ export default class WebhookHandler {
       data.paid_at,
     ]);
 
+    await this.adapter.subscriptionAdapter.updateUserTier(
+      user.id as string,
+      plan.tier,
+    );
+
     console.log("Payment record created");
 
     console.log("Waiting for subscription.create event from Paystack...");

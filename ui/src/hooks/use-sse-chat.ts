@@ -8,6 +8,7 @@ import {
   VoteResponseEvent,
   CouncilResponseData,
 } from "@/types/chat";
+import type { RateLimitError } from "@/types/subscription";
 
 interface RoundData {
   prompt: string;
@@ -56,6 +57,7 @@ export function useFlowSSEChat(initialChatId?: string, options?: UseFlowSSEChatO
     rounds: [],
     branchPoints: [],
   });
+  const [rateLimitError, setRateLimitError] = useState<RateLimitError | null>(null);
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -482,11 +484,27 @@ export function useFlowSSEChat(initialChatId?: string, options?: UseFlowSSEChatO
           abortControllerRef.current.signal
         );
       } catch (error: any) {
-        setFlowState((prev) => ({
-          ...prev,
-          error: error.message || "Failed to start stream",
-          isStreaming: false,
-        }));
+        if (error.response?.status === 429) {
+          const rateLimitData: RateLimitError = error.response?.data?.data || {
+            error: "Rate limit exceeded",
+            message: error.response?.data?.message || "You've reached your message limit.",
+            limits: { messagesPerDay: 0, messagesPerMonth: 0, maxCouncilMembers: 0, canUseAdvancedModels: false },
+            usage: { daily: 0, monthly: 0 },
+            upgradeUrl: "/subscription",
+          };
+          setRateLimitError(rateLimitData);
+          setFlowState((prev) => ({
+            ...prev,
+            error: "Rate limit exceeded",
+            isStreaming: false,
+          }));
+        } else {
+          setFlowState((prev) => ({
+            ...prev,
+            error: error.message || "Failed to start stream",
+            isStreaming: false,
+          }));
+        }
       }
     },
     [flowState.nodes, flowState.edges, flowState.chatId, flowState.conversationRound, flowState.rounds]
@@ -965,5 +983,7 @@ export function useFlowSSEChat(initialChatId?: string, options?: UseFlowSSEChatO
     addBranchPoint,
     buildFlowFromMessages,
     initializeFromMessages,
+    rateLimitError,
+    clearRateLimitError: () => setRateLimitError(null),
   };
 }

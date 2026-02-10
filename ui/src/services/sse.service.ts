@@ -43,7 +43,22 @@ export class SSEService {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        // Read the error response body to get rate limit info and other details
+        let errorData: any = null;
+        try {
+          errorData = await response.json();
+        } catch {
+          // response body isn't JSON, continue with status-only error
+        }
+
+        const error: any = new Error(
+          errorData?.message || `HTTP error! status: ${response.status}`
+        );
+        error.response = {
+          status: response.status,
+          data: errorData,
+        };
+        throw error;
       }
 
       const reader = response.body?.getReader();

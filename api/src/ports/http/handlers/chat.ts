@@ -559,7 +559,10 @@ export default class ChatHandler {
   };
 
   private deleteChat = async (req: Request, res: Response) => {
-    const { id, user_id } = req.params as { id: string; user_id: string };
+    const user = req.user as { id: string };
+    const user_id = user.id;
+
+    const { id } = req.params as { id: string };
 
     await this.services.chatService.chatRepository.delete(id, user_id);
 

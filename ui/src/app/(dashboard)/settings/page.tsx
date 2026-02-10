@@ -13,6 +13,8 @@ import { Label } from "@/components/ui/label";
 import { useAuthStore } from "@/store/auth.store";
 import { Monitor, Moon, Sun } from "lucide-react";
 import { CouncilMembersSettings } from "@/components/council-members-settings";
+import { SubscriptionSettings } from "@/components/subscription-settings";
+import { ApiKeySettings } from "@/components/api-key-settings";
 
 export default function SettingsPage() {
   const { user } = useAuthStore();
@@ -56,6 +58,12 @@ export default function SettingsPage() {
                   </div>
                 </CardContent>
               </Card> */}
+            {/* Subscription Section */}
+            <SubscriptionSettings />
+
+            {/* API Keys Section */}
+            <ApiKeySettings />
+
             {/* Council Members Section */}
             <CouncilMembersSettings />
             <Card className="lg:border-border w-full border-2 border-none shadow-none lg:shadow">

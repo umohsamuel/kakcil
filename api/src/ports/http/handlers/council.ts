@@ -44,7 +44,19 @@ export default class CouncilHandler {
 
     const { members } = req.body as { members: ModelName[] };
 
-    console.log("request members object ", members);
+    if (!Array.isArray(members) || members.length === 0) {
+      throw new BadRequestError("Council Members are required");
+    }
+
+    const tier = await this.adapter.subscriptionAdapter.getUserTier(id);
+
+    const limits = await this.adapter.subscriptionAdapter.getUserLimits(id);
+
+    if (members.length > limits.maxCouncilMembers) {
+      throw new BadRequestError(
+        `You can only have ${limits.maxCouncilMembers} council members on your ${tier} plan. Please upgrade to add more members.`,
+      );
+    }
 
     const activeByokKeys =
       await this.adapter.userApiKeyAdapter.getActiveKeys(id);
@@ -73,10 +85,6 @@ export default class CouncilHandler {
           `Cannot use models from providers [${unauthorizedProviders.join(", ")}] that do not belong to your API key providers. Active providers: [${[...activeByokKeyProviders].join(", ")}]`,
         );
       }
-    }
-
-    if (!Array.isArray(members) || members.length === 0) {
-      throw new BadRequestError("Members are is required");
     }
 
     try {

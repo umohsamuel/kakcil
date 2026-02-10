@@ -91,6 +91,14 @@ export class ChatService {
     return response.data;
   }
 
+  // Delete a chat
+  async deleteChat(chatId: string): Promise<{ message: string }> {
+    const response = await apiClient.delete<{ message: string }>(
+      `/api/v1/chats/${chatId}`,
+    );
+    return response.data;
+  }
+
   // Get branch info by ID (includes parent message context)
   async getBranchInfo(branchId: string): Promise<{
     branch: {
