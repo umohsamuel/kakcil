@@ -2,6 +2,7 @@ import type {
   SubscriptionLimits,
   SubscriptionTier,
   SubscriptionStatus,
+  PaystackPlan,
 } from "./entity";
 import type Subscription from "./entity";
 
@@ -51,9 +52,7 @@ export default interface SubscriptionRepository {
 
   cancelSubscription(userId: string): Promise<void>;
 
-  getPlanByCode(planCode: string): Promise<{
-    id: string;
-    tier: SubscriptionTier;
-    amount: number;
-  } | null>;
+  getPlanByCode(planCode: string): Promise<PaystackPlan | null>;
+
+  getPlans(): Promise<PaystackPlan[]>;
 }

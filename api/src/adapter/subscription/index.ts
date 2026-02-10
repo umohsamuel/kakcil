@@ -330,6 +330,17 @@ export default class SubscriptionAdapter implements SubscriptionRepository {
     return result.rows[0] ?? null;
   }
 
+  async getPlans(): Promise<PaystackPlan[]> {
+    const query = `
+      SELECT * 
+      FROM paystack_plans 
+      WHERE is_active = true
+    `;
+    const result = await this.pgPool.query<PaystackPlan>(query);
+
+    return result.rows;
+  }
+
   async baseStorePaymentForWebhookToCreateSubscription(
     email: string,
     user_id: string,

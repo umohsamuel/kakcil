@@ -22,11 +22,17 @@ export default class SubscriptionHandler {
   }
 
   private configureRoutes() {
+    this.router.get("/plans", this.getPlans);
     this.router.post("/paystack/initialize", this.initializePayment);
     this.router.get("/paystack/verify", this.verifyPayment);
     this.router.post("/cancel", this.cancelSubscription);
     this.router.get("/status", this.getSubscriptionStatus);
   }
+
+  private getPlans = async (_req: Request, res: Response) => {
+    const plans = await this.adapter.subscriptionAdapter.getPlans();
+    return new SuccessResponse(res, plans).send();
+  };
 
   private initializePayment = async (req: Request, res: Response) => {
     const { email, amount, sub_tier } = req.body;
