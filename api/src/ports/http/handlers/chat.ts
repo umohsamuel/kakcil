@@ -106,7 +106,6 @@ export default class ChatHandler {
         content: m.content,
       })) as ModelMessage[] | undefined;
 
-      // Stream responses with partial updates
       const llmResponses = await this.services.llmService.streamPromptModels(
         message,
         id,
