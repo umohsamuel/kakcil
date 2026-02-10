@@ -242,7 +242,7 @@ export default class SubscriptionAdapter implements SubscriptionRepository {
     const query = `
       SELECT COUNT(*) as count 
       FROM chat_messages 
-      WHERE user_id = $1 
+      WHERE user_id = $1 AND role = 'user'
       AND created_at > NOW() - INTERVAL '${interval}'
     `;
 
