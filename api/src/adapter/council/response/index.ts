@@ -3,6 +3,7 @@ import type {
   ICouncilResponse,
 } from "@/domain/council/response/entity.ts";
 import type CouncilResponseRepository from "@/domain/council/response/repository.ts";
+import { BadRequestError } from "@/infrastructure/errors/badRequest";
 import type { Pool } from "pg";
 
 export default class CouncilResponseAdapter implements CouncilResponseRepository {
@@ -33,7 +34,7 @@ export default class CouncilResponseAdapter implements CouncilResponseRepository
     const result = await this.pgPool.query<ICouncilResponse>(query, values);
 
     if (result.rows.length === 0 || !result.rows[0]) {
-      throw new Error("Failed to create council response");
+      throw new BadRequestError("Failed to create council response");
     }
 
     return result.rows[0];

@@ -34,7 +34,7 @@ export default class User {
 
   setPassword(newPassword: string) {
     if (newPassword.length < 8) {
-      throw new Error("Password must be at least 8 characters");
+      throw new BadRequestError("Password must be at least 8 characters");
     }
 
     return new User({
@@ -45,11 +45,11 @@ export default class User {
 
   changePassword(oldPassword: string, newPassword: string): User {
     if (this.password !== oldPassword) {
-      throw new Error("Old password is incorrect");
+      throw new BadRequestError("Old password is incorrect");
     }
 
     if (newPassword.length < 8) {
-      throw new Error("Password must be at least 8 characters");
+      throw new BadRequestError("Password must be at least 8 characters");
     }
 
     return new User({

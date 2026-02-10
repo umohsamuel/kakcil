@@ -48,7 +48,7 @@ export default class UserApiKeyAdapter implements UserApiKeyRepository {
     const result = await this.pgPool.query<UserApiKey>(query, values);
 
     if (!result.rows[0]) {
-      throw new Error("Failed to add API Key");
+      throw new BadRequestError("Failed to add API Key");
     }
 
     return result.rows[0];
@@ -87,7 +87,7 @@ export default class UserApiKeyAdapter implements UserApiKeyRepository {
     const result = await this.pgPool.query<UserApiKey>(query, ctx.values);
 
     if (!result.rows[0]) {
-      throw new Error("API Key not found");
+      throw new BadRequestError("API Key not found");
     }
 
     return result.rows[0];
@@ -119,29 +119,19 @@ export default class UserApiKeyAdapter implements UserApiKeyRepository {
     return result.rows[0] ?? null;
   }
 
-  async getActiveKey(
-    userId: string,
-    provider: AIProvider,
-  ): Promise<UserApiKey | null> {
+  async getActiveKeys(userId: string): Promise<UserApiKey[] | null> {
     const query = `SELECT * FROM user_api_keys 
-       WHERE user_id = $1 AND provider = $2 AND is_active = true
+       WHERE user_id = $1 AND is_active = true
        LIMIT 1`;
 
-    const result = await this.pgPool.query<UserApiKey>(query, [
-      userId,
-      provider,
-    ]);
+    const result = await this.pgPool.query<UserApiKey>(query, [userId]);
 
-    if (result.rows.length === 0) {
-      throw new BadRequestError("No active API key found for this provider");
-    }
-
-    return result.rows[0] ?? null;
+    return result.rows ?? null;
   }
 
   async getActiveKeyByProvider(
     user_id: string,
-    provider?: AIProvider,
+    provider: AIProvider,
   ): Promise<UserApiKey | null> {
     if (!user_id || !provider) {
       throw new BadRequestError("User ID and Provider are required");

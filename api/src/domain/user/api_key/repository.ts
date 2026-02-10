@@ -7,13 +7,10 @@ export default interface UserApiKeyRepository {
   update: (payload: Partial<UserApiKey>) => Promise<UserApiKey>;
   delete: (user_id: string, key_id: string) => Promise<void>;
   findById: (id: string) => Promise<UserApiKey | null>;
-  getActiveKey: (
-    userId: string,
-    provider: AIProvider,
-  ) => Promise<UserApiKey | null>;
+  getActiveKeys: (userId: string) => Promise<UserApiKey[] | null>;
 
   getActiveKeyByProvider: (
     user_id: string,
-    provider?: AIProvider,
+    provider: AIProvider,
   ) => Promise<UserApiKey | null>;
 }

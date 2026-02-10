@@ -34,6 +34,8 @@ export default class ExpressHTTP {
     this.adapter = adapter;
     this.server = express();
 
+    this.webhook();
+
     this.server.use(express.json());
     this.server.use(express.urlencoded({ extended: true }));
     this.server.use(helmet());
@@ -54,6 +56,7 @@ export default class ExpressHTTP {
     this.chat();
     this.council();
     this.apiKey();
+    this.subscription();
 
     this.testPoolConnection();
 
@@ -117,7 +120,7 @@ export default class ExpressHTTP {
   }
 
   council() {
-    const router = new CouncilHandler(this.services.councilService);
+    const router = new CouncilHandler(this.services, this.adapter);
     this.router.use(
       "/council",
       Authorize(this.services.authenticationService),
@@ -144,8 +147,11 @@ export default class ExpressHTTP {
   }
 
   webhook() {
-    this.router.use("/webhook", express.raw({ type: "application/json" }));
     const router = new WebhookHandler(this.adapter, this.services);
-    this.router.use("/webhook", router.router);
+    this.server.use(
+      "/webhook",
+      express.raw({ type: "application/json" }),
+      router.router,
+    );
   }
 }

@@ -1,5 +1,5 @@
 import type Adapter from "@/adapter";
-import type { AIProvider } from "@/domain/model/entity";
+import { AI_PROVIDERS, type AIProvider } from "@/domain/model/entity";
 import type { IUser } from "@/domain/user/entity";
 import { SuccessResponse } from "@/infrastructure/responses/success";
 import type Services from "@/service";
@@ -59,6 +59,13 @@ export default class ApiKeyHandler {
       encrypted_key: apiKey,
     });
 
+    AI_PROVIDERS.filter((p) => p !== provider).forEach(async (p) => {
+      await this.adapter.councilAdapter.deactivateAllInProvider(
+        user.id as string,
+        p,
+      );
+    });
+
     new SuccessResponse(res, result).send();
   };
 
@@ -79,6 +86,15 @@ export default class ApiKeyHandler {
       encrypted_key: apiKey,
       provider,
     });
+
+    if (provider) {
+      AI_PROVIDERS.filter((p) => p !== provider).forEach(async (p) => {
+        await this.adapter.councilAdapter.deactivateAllInProvider(
+          user.id as string,
+          p,
+        );
+      });
+    }
 
     new SuccessResponse(res, result).send();
   };

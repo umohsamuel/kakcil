@@ -54,9 +54,14 @@ export default class LLMAdapter implements LLMRepository {
     onChunk?: (partial: { text?: string; output?: T }) => void,
   ): Promise<TextGenerationResponse<T> | undefined> {
     const provider = this.modelRepository.getProviderByModelName(request.model);
+
+    if (!provider) {
+      throw new BadRequestError(`Unsupported provider: ${provider}`);
+    }
+
     const userApiKey = await this.userApiKeyRepository.getActiveKeyByProvider(
       user_id,
-      provider ?? undefined,
+      provider,
     );
 
     if (!request.prompt) {

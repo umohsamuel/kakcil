@@ -10,6 +10,7 @@ import type {
   CreateCouncilMemberDTO,
 } from "@/domain/council/entity.ts";
 import type ModelRepository from "@/domain/model/repository.ts";
+import { BadRequestError } from "@/infrastructure/errors/badRequest";
 
 export default class CouncilService {
   councilRepository: CouncilRepository;
@@ -39,7 +40,7 @@ export default class CouncilService {
 
   async initializeDefaultCouncil(user_id: string): Promise<void> {
     const defaultMembers: CreateCouncilMemberDTO[] = DEFAULT_COUNCIL_MODELS.map(
-      (model_name, index) => ({
+      (model_name) => ({
         user_id,
         model_name,
         provider: this.modelRepository.getProviderByModelName(model_name)!,
@@ -71,13 +72,13 @@ export default class CouncilService {
       const model_name = modelNames[i];
 
       if (!model_name) {
-        throw new Error("Model name cannot be empty");
+        throw new BadRequestError("Model name cannot be empty");
       }
 
       const provider = this.modelRepository.getProviderByModelName(model_name);
 
       if (!provider) {
-        throw new Error(`Invalid model: ${model_name}`);
+        throw new BadRequestError(`Invalid model: ${model_name}`);
       }
 
       await this.councilRepository.upsert({
@@ -95,7 +96,7 @@ export default class CouncilService {
   ): Promise<void> {
     const provider = this.modelRepository.getProviderByModelName(model_name);
     if (!provider) {
-      throw new Error(`Invalid model: ${model_name}`);
+      throw new BadRequestError(`Invalid model: ${model_name}`);
     }
 
     await this.councilRepository.upsert({

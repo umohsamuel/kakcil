@@ -1,15 +1,18 @@
-import type CouncilService from "@/service/council";
 import { type Request, type Response, Router } from "express";
 import { BadRequestError } from "@/infrastructure/errors/badRequest.ts";
 import type { ModelName } from "@/domain/model/entity.ts";
 import { SuccessResponse } from "@/infrastructure/responses/success.ts";
+import type Services from "@/service";
+import type Adapter from "@/adapter";
 
 export default class CouncilHandler {
-  councilService: CouncilService;
+  services: Services;
+  adapter: Adapter;
   router = Router();
 
-  constructor(councilService: CouncilService) {
-    this.councilService = councilService;
+  constructor(services: Services, adapter: Adapter) {
+    this.services = services;
+    this.adapter = adapter;
 
     this.configureRoutes();
   }
@@ -22,7 +25,7 @@ export default class CouncilHandler {
   }
 
   private getAllModels = async (req: Request, res: Response) => {
-    const members = await this.councilService.listCouncilModels();
+    const members = await this.services.councilService.listCouncilModels();
 
     return new SuccessResponse(res, members).send();
   };
@@ -30,7 +33,8 @@ export default class CouncilHandler {
   private getUserCouncilMembers = async (req: Request, res: Response) => {
     const { id } = req.user as { id: string };
 
-    const members = await this.councilService.getUserCouncilMembers(id);
+    const members =
+      await this.services.councilService.getUserCouncilMembers(id);
 
     return new SuccessResponse(res, members).send();
   };
@@ -42,12 +46,41 @@ export default class CouncilHandler {
 
     console.log("request members object ", members);
 
+    const activeByokKeys =
+      await this.adapter.userApiKeyAdapter.getActiveKeys(id);
+
+    if (activeByokKeys) {
+      const updateProviders = new Set(
+        members
+          .map((m) =>
+            this.services.councilService.modelRepository.getProviderByModelName(
+              m,
+            ),
+          )
+          .filter((provider) => provider != null),
+      );
+
+      const activeByokKeyProviders = new Set(
+        activeByokKeys.map((k) => k.provider),
+      );
+
+      const unauthorizedProviders = [...updateProviders].filter(
+        (provider) => !activeByokKeyProviders.has(provider),
+      );
+
+      if (unauthorizedProviders.length > 0) {
+        throw new BadRequestError(
+          `Cannot use models from providers [${unauthorizedProviders.join(", ")}] that do not belong to your API key providers. Active providers: [${[...activeByokKeyProviders].join(", ")}]`,
+        );
+      }
+    }
+
     if (!Array.isArray(members) || members.length === 0) {
       throw new BadRequestError("Members are is required");
     }
 
     try {
-      await this.councilService.updateUserCouncil(id, members);
+      await this.services.councilService.updateUserCouncil(id, members);
     } catch (error) {
       throw new BadRequestError(error as string);
     }
@@ -60,7 +93,7 @@ export default class CouncilHandler {
   private clearCouncil = async (req: Request, res: Response) => {
     const { id } = req.user as { id: string };
 
-    await this.councilService.clearCouncil(id);
+    await this.services.councilService.clearCouncil(id);
 
     return new SuccessResponse(res, {
       message: "All council members cleared successfully",

@@ -3,7 +3,8 @@ import type {
   CreateCouncilMemberDTO,
 } from "@/domain/council/entity";
 import type CouncilRepository from "@/domain/council/repository.ts";
-import type { ModelName } from "@/domain/model/entity";
+import type { AIProvider, ModelName } from "@/domain/model/entity";
+import { BadRequestError } from "@/infrastructure/errors/badRequest";
 import type { Pool } from "pg";
 
 export default class CouncilAdapter implements CouncilRepository {
@@ -41,7 +42,7 @@ export default class CouncilAdapter implements CouncilRepository {
     const result = await this.pgPool.query<CouncilMember>(query, values);
 
     if (result.rows.length === 0 || !result.rows[0]) {
-      throw new Error("Failed to create council member");
+      throw new BadRequestError("Failed to create council member");
     }
 
     return result.rows[0];
@@ -49,7 +50,7 @@ export default class CouncilAdapter implements CouncilRepository {
 
   async createMany(members: CreateCouncilMemberDTO[]): Promise<void> {
     if (members.length === 0) {
-      throw new Error("At least one council member is required");
+      throw new BadRequestError("At least one council member is required");
     }
 
     const client = await this.pgPool.connect();
@@ -89,6 +90,19 @@ export default class CouncilAdapter implements CouncilRepository {
     await this.pgPool.query(query, [userId]);
   }
 
+  async deactivateAllInProvider(
+    userId: string,
+    provider: AIProvider,
+  ): Promise<void> {
+    const query = `
+      UPDATE council_members
+      SET is_active = FALSE
+      WHERE user_id = $1 AND provider = $2
+    `;
+
+    await this.pgPool.query(query, [userId, provider]);
+  }
+
   async deactivateByModelName(
     userId: string,
     modelName: ModelName,
@@ -122,7 +136,7 @@ export default class CouncilAdapter implements CouncilRepository {
     const result = await this.pgPool.query<CouncilMember>(query, values);
 
     if (result.rows.length === 0 || !result.rows[0]) {
-      throw new Error("Failed to upsert council member");
+      throw new BadRequestError("Failed to upsert council member");
     }
 
     return result.rows[0];

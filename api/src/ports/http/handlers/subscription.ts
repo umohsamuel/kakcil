@@ -1,5 +1,6 @@
 import type Adapter from "@/adapter";
 import type { IUser } from "@/domain/user/entity";
+import { BadRequestError } from "@/infrastructure/errors/badRequest";
 import { ErrorResponse } from "@/infrastructure/responses/error";
 import { SuccessResponse } from "@/infrastructure/responses/success";
 import type Services from "@/service";
@@ -22,7 +23,7 @@ export default class SubscriptionHandler {
 
   private configureRoutes() {
     this.router.post("/paystack/initialize", this.initializePayment);
-    this.router.post("/paystack/verify", this.verifyPayment);
+    this.router.get("/paystack/verify", this.verifyPayment);
     this.router.post("/cancel", this.cancelSubscription);
     this.router.get("/status", this.getSubscriptionStatus);
   }
@@ -45,16 +46,19 @@ export default class SubscriptionHandler {
     const { id, email } = req.user as IUser;
 
     if (!id) {
-      throw new Error("User not found");
+      throw new BadRequestError("User not found");
     }
 
     const response = await this.services.paymentService.verifyPaystackPayment(
       reference as string,
     );
 
+    console.log("response from paystack", { response });
+
     if (response.data.status === "success") {
       await this.adapter.subscriptionAdapter.baseStorePaymentForWebhookToCreateSubscription(
         email,
+        id,
         response,
       );
 
@@ -76,7 +80,7 @@ export default class SubscriptionHandler {
     );
 
     if (!subscription) {
-      throw new Error("No active subscription found");
+      throw new BadRequestError("No active subscription found");
     }
 
     await this.services.paymentService.cancelPaystackSubscription(

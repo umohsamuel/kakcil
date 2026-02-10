@@ -57,7 +57,7 @@ export default class ChatBranchAdapter implements ChatBranchRepository {
     const result = await this.pgPool.query<IChatBranch>(query, values);
 
     if (result.rows.length === 0 || !result.rows[0]) {
-      throw new Error("Failed to create chat branch");
+      throw new BadRequestError("Failed to create chat branch");
     }
 
     return result.rows[0];
@@ -118,7 +118,7 @@ export default class ChatBranchAdapter implements ChatBranchRepository {
     }
 
     if (setClauses.length === 0) {
-      throw new Error("No fields to update");
+      throw new BadRequestError("No fields to update");
     }
 
     values.push(id);
@@ -133,7 +133,7 @@ export default class ChatBranchAdapter implements ChatBranchRepository {
     const result = await this.pgPool.query<IChatBranch>(query, values);
 
     if (result.rows.length === 0 || !result.rows[0]) {
-      throw new Error("Chat branch not found or failed to update");
+      throw new BadRequestError("Chat branch not found or failed to update");
     }
 
     return result.rows[0];

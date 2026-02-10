@@ -13,6 +13,8 @@ export default interface CouncilRepository {
 
   deactivateAll(user_id: string): Promise<void>;
 
+  deactivateAllInProvider(user_id: string, provider: AIProvider): Promise<void>;
+
   deactivateByModelName(user_id: string, model_name: ModelName): Promise<void>;
 
   upsert(payload: Partial<CreateCouncilMemberDTO>): Promise<CouncilMember>;

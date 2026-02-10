@@ -3,13 +3,10 @@ import type Adapter from "@/adapter";
 import type { IUser } from "@/domain/user/entity";
 import { ErrorResponse } from "@/infrastructure/responses/error";
 import { StatusCodes } from "http-status-codes";
+import type Services from "@/service";
 
-export interface AuthRequest extends Request {
-  user_id?: string;
-}
-
-export const CheckMessageLimit = (adapter: Adapter) => {
-  return async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const CheckMessageLimit = (adapter: Adapter, _services: Services) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
     try {
       const user = req.user as IUser;
       const id = user.id;
@@ -26,10 +23,12 @@ export const CheckMessageLimit = (adapter: Adapter) => {
         return new ErrorResponse(res, "Adapter not available").send();
       }
 
+      const activeByokKeys = await adapter.userApiKeyAdapter.getActiveKeys(id);
+
       const limitCheck =
         await adapter.subscriptionAdapter.checkMessageLimit(id);
 
-      if (!limitCheck.allowed) {
+      if (!limitCheck.allowed && !activeByokKeys) {
         return new ErrorResponse(
           res,
           "Rate limit exceeded",

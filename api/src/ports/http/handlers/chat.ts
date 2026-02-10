@@ -25,17 +25,17 @@ export default class ChatHandler {
   private configureRoutes() {
     this.router.post(
       "/new",
-      CheckMessageLimit(this.adapter),
+      CheckMessageLimit(this.adapter, this.services),
       this.startNewChat,
     );
     this.router.post(
       "/",
-      CheckMessageLimit(this.adapter),
+      CheckMessageLimit(this.adapter, this.services),
       this.sendMessageToChat,
     );
     this.router.post(
       "/branch",
-      CheckMessageLimit(this.adapter),
+      CheckMessageLimit(this.adapter, this.services),
       this.branchFromChat,
     );
 
@@ -444,7 +444,7 @@ export default class ChatHandler {
       await this.adapter.councilResponseAdapter.findById(response_id);
 
     if (!branchResponse) {
-      throw new Error("Council response not found");
+      throw new BadRequestError("Council response not found");
     }
 
     const branch = await this.adapter.chatBranchAdapter.createChatBranch({

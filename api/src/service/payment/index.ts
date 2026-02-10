@@ -48,7 +48,7 @@ export default class PaymentService {
       return response.data;
     } catch (error) {
       console.log("error in initializePaystackPayment: ", error);
-      throw new Error("Failed to initialize payment");
+      throw new BadRequestError("Failed to initialize payment");
     }
   }
 
@@ -72,7 +72,7 @@ export default class PaymentService {
       return response.data;
     } catch (error) {
       console.log("error in verifyPaystackPayment: ", error);
-      throw new Error("Failed to verify payment");
+      throw new BadRequestError("Failed to verify payment");
     }
   }
 
@@ -97,7 +97,7 @@ export default class PaymentService {
       );
     } catch (error) {
       console.error("error in cancelPaystackSubscription: ", error);
-      throw new Error("Failed to cancel subscription");
+      throw new BadRequestError("Failed to cancel subscription");
     }
   }
 }

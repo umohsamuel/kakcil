@@ -106,7 +106,7 @@ export default class SubscriptionAdapter implements SubscriptionRepository {
     const result = await this.pgPool.query<Subscription>(query, values);
 
     if (result.rows.length === 0 || !result.rows[0]) {
-      throw new Error("Failed to create subscription");
+      throw new BadRequestError("Failed to create subscription");
     }
 
     return result.rows[0];
@@ -332,6 +332,7 @@ export default class SubscriptionAdapter implements SubscriptionRepository {
 
   async baseStorePaymentForWebhookToCreateSubscription(
     email: string,
+    user_id: string,
     payload: PaystackVerifyResponse,
   ) {
     const query = `
@@ -360,7 +361,7 @@ export default class SubscriptionAdapter implements SubscriptionRepository {
     `;
 
     const result = await this.pgPool.query(query, [
-      payload.data.id,
+      user_id,
       payload.data.id,
       payload.data.reference,
       null,
@@ -380,10 +381,6 @@ export default class SubscriptionAdapter implements SubscriptionRepository {
       payload.data.fees,
       payload.data.paid_at,
     ]);
-
-    if (result.rows.length === 0 || !result.rows[0]) {
-      throw new Error("Failed to store payment");
-    }
 
     return result.rows[0] ?? null;
   }
