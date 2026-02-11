@@ -7,7 +7,6 @@ export default class MailService {
 
   constructor() {
     const secrets = new Secrets();
-
     this.from = secrets.mailerCredentials.MAILER_USER;
 
     this.transporter = nodemailer.createTransport({
@@ -28,7 +27,8 @@ export default class MailService {
       from: this.from,
       to: recipient,
       subject,
-      text: message,
+      html: message,
+      text: message.replace(/<[^>]*>/g, ""),
     });
   }
 }

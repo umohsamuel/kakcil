@@ -61,7 +61,7 @@ export default class CouncilHandler {
     const activeByokKeys =
       await this.adapter.userApiKeyAdapter.getActiveKeys(id);
 
-    if (activeByokKeys) {
+    if (activeByokKeys && activeByokKeys.length > 0) {
       const updateProviders = new Set(
         members
           .map((m) =>

@@ -121,8 +121,7 @@ export default class UserApiKeyAdapter implements UserApiKeyRepository {
 
   async getActiveKeys(userId: string): Promise<UserApiKey[] | null> {
     const query = `SELECT * FROM user_api_keys 
-       WHERE user_id = $1 AND is_active = true
-       LIMIT 1`;
+       WHERE user_id = $1 AND is_active = true ORDER BY created_at DESC`;
 
     const result = await this.pgPool.query<UserApiKey>(query, [userId]);
 

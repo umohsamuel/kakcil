@@ -5,7 +5,6 @@ import { AuthorizeRefreshToken } from "../middlewares/authorization";
 import {
   generateJWTToken,
   generateRefreshJWTToken,
-  verifyToken,
 } from "@/infrastructure/utils/encryption";
 import {
   SuccessResponse,
@@ -38,6 +37,9 @@ export default class AuthenticationHandler {
   private configureRoutes() {
     this.router.post("/register", this.register);
     this.router.post("/login", this.login);
+
+    this.router.post("/send-verification-email", this.sendVerificationEmail);
+    this.router.post("/verify", this.verify);
 
     this.router.post("/forgotPassword", this.forgotPassword);
     this.router.post("/resetPassword", this.resetPassword);
@@ -99,6 +101,24 @@ export default class AuthenticationHandler {
     new SuccessResponse(res, user).send();
   };
 
+  sendVerificationEmail = async (req: Request, res: Response) => {
+    const { email } = req.body;
+
+    await this.authenticationService.sendVerificationEmail(email);
+
+    new SuccessResponse(res, {
+      message: "A verification link has been sent to your email",
+    }).send();
+  };
+
+  verify = async (req: Request, res: Response) => {
+    const { token } = req.body;
+
+    const user = await this.authenticationService.verify(token);
+
+    new SuccessResponse(res, user).send();
+  };
+
   forgotPassword = async (req: Request, res: Response) => {
     const { email } = req.body;
 
@@ -114,11 +134,8 @@ export default class AuthenticationHandler {
   resetPassword = async (req: Request, res: Response) => {
     const { password, token } = req.body;
 
-    const jwtPayload = verifyToken(token);
-    const payload: Payload = jwtPayload as Payload;
-
     const user = await this.authenticationService.resetPassword(
-      payload.id,
+      token,
       password,
     );
 

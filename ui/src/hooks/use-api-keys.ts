@@ -15,8 +15,9 @@ export function useApiKeys() {
 
   const addMutation = useMutation({
     mutationFn: (data: AddApiKeyRequest) => apiKeyService.add(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.apiKeys.all });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.apiKeys.all });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.council.members() });
       toast.success("API key added successfully");
     },
     onError: (error: Error) => {
@@ -26,8 +27,9 @@ export function useApiKeys() {
 
   const updateMutation = useMutation({
     mutationFn: (data: UpdateApiKeyRequest) => apiKeyService.update(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.apiKeys.all });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.apiKeys.all });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.council.members() });
       toast.success("API key updated successfully");
     },
     onError: (error: Error) => {
@@ -37,8 +39,9 @@ export function useApiKeys() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => apiKeyService.deleteKey(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.apiKeys.all });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.apiKeys.all });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.council.members() });
       toast.success("API key deleted successfully");
     },
     onError: (error: Error) => {

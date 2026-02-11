@@ -34,6 +34,22 @@ export class AuthService {
     return response.data;
   }
 
+  async sendVerificationEmail(email: string): Promise<{ message: string }> {
+    const response = await apiClient.post<{ message: string }>(
+      "/auth/send-verification-email",
+      { email }
+    );
+    return response.data;
+  }
+
+  async verifyEmail(token: string): Promise<{ message: string }> {
+    const response = await apiClient.post<{ message: string }>(
+      "/auth/verify",
+      { token }
+    );
+    return response.data;
+  }
+
   async forgotPassword(email: string): Promise<{ message: string }> {
     const response = await apiClient.post<{ message: string }>(
       "/auth/forgotPassword",
