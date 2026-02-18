@@ -38,7 +38,6 @@ export const MultiCriteriaVoteSchema = z.object({
     A: MultiCriteriaScoreSchema,
     B: MultiCriteriaScoreSchema,
     // C: MultiCriteriaScoreSchema,
-    // D: MultiCriteriaScoreSchema,
   }),
   reasoning: z.string(),
 });
