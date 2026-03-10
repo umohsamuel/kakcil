@@ -133,7 +133,7 @@ export default class EmailTemplatesService {
     `;
   }
 
-  // ─── Shared helpers (keep templates DRY) ───────────
+  // ─── Shared helpers  ───────────
 
   private brandButton(href: string, label: string): string {
     return `
@@ -226,7 +226,7 @@ export default class EmailTemplatesService {
             <li style="margin-bottom: 8px;">100 messages per month</li>
             <li style="margin-bottom: 8px;">Up to 3 council members</li>`,
         )}
-        ${this.body('Ready to unlock more? Upgrade to <strong>Plus</strong> or <strong>Pro</strong> for unlimited messaging and advanced features.')}
+        ${this.body("Ready to unlock more? Upgrade to <strong>Plus</strong> or <strong>Pro</strong> for unlimited messaging and advanced features.")}
         ${this.brandButton(`${this.baseUrl}/chat`, "Get Started")}
         ${this.muted("If you have any questions, we're here to help!")}
         ${this.signOff()}
