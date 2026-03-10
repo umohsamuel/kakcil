@@ -78,6 +78,8 @@ jobs:
           key: ${{ secrets.GCE_SSH_PRIVATE_KEY }}
           envs: REMOTE_DIR
           script: |
+            set -e                    
+            mkdir -p "${REMOTE_DIR}"        
             cd "${REMOTE_DIR}"
             cat > .env << 'EOF'
             SERVER_PORT=8080
@@ -108,6 +110,7 @@ jobs:
             ENCRYPTION_KEY=${{ secrets.ENCRYPTION_KEY }}
             EOF
             chmod 600 .env
+            echo "✅ .env created at: $(realpath .env)" 
             echo "✅ Environment file created"
             echo "📝 Environment file contents (secrets hidden):"
             cat .env | sed 's/=.*/=***/'
@@ -122,6 +125,10 @@ jobs:
           envs: REMOTE_DIR
           script: |
             set -e
+
+            echo "🚀 Deploying to ${REMOTE_DIR}"
+            ls -la "${REMOTE_DIR}/" || echo "❌ REMOTE_DIR does not exist!"
+            [ -f "${REMOTE_DIR}/.env" ] || { echo "❌ .env missing!"; exit 1; }
 
             echo "🚀 Starting Bun API deployment to ${REMOTE_DIR}"
             cd "${REMOTE_DIR}"
