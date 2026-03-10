@@ -160,7 +160,7 @@ jobs:
               --name myapp \
               --restart unless-stopped \
               -p 8080:8080 \
-              --env-file "${REMOTE_DIR}/.env" \
+              --env-file .env \ 
               --log-driver json-file \
               --log-opt max-size=10m \
               --log-opt max-file=3 \
@@ -208,7 +208,7 @@ jobs:
                   --name myapp \
                   --restart unless-stopped \
                   -p 8080:8080 \
-                  --env-file "${REMOTE_DIR}/.env" \
+                  --env-file .env \
                   myapp:$LAST_BACKUP
               fi
               exit 1
