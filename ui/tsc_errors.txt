@@ -1,2 +1,0 @@
-src/components/message-list.tsx(55,20): error TS18048: 'message.timestamp' is possibly 'undefined'.
-src/components/message-list.tsx(78,24): error TS18048: 'message.timestamp' is possibly 'undefined'.
