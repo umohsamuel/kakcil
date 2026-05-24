@@ -1,4 +1,4 @@
-name: CI/CD → GCE VM (Backend)
+name: CI/CD → EC2 VM (Backend)
 
 on:
   push:
@@ -16,10 +16,10 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     env:
-      REMOTE_DIR: ${{ secrets.GCE_REMOTE_DIR }}
-      SSH_USER: ${{ secrets.GCE_SSH_USER }}
-      SSH_HOST: ${{ secrets.GCE_SSH_HOST }}
-      SSH_PORT: ${{ secrets.GCE_SSH_PORT || '22' }}
+      REMOTE_DIR: ${{ secrets.EC2_REMOTE_DIR }}
+      SSH_USER: ${{ secrets.EC2_SSH_USER }}
+      SSH_HOST: ${{ secrets.EC2_SSH_HOST }}
+      SSH_PORT: ${{ secrets.EC2_SSH_PORT || '22' }}
 
     steps:
       - name: Checkout code
@@ -55,11 +55,19 @@ jobs:
       - name: Configure SSH key
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.GCE_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -p ${{ env.SSH_PORT }} ${{ env.SSH_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Copy Docker image to GCE VM
+      - name: Create remote directory
+        run: |
+          ssh -i ~/.ssh/id_rsa \
+            -p ${{ env.SSH_PORT }} \
+            -o StrictHostKeyChecking=no \
+            ${{ env.SSH_USER }}@${{ env.SSH_HOST }} \
+            "mkdir -p ${{ env.REMOTE_DIR }}"
+
+      - name: Copy Docker image to EC2 VM
         run: |
           echo "📦 Copying Docker image to VM..."
           scp -i ~/.ssh/id_rsa \
@@ -75,7 +83,7 @@ jobs:
           host: ${{ env.SSH_HOST }}
           username: ${{ env.SSH_USER }}
           port: ${{ env.SSH_PORT }}
-          key: ${{ secrets.GCE_SSH_PRIVATE_KEY }}
+          key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           envs: REMOTE_DIR
           script: |
             set -e                    
@@ -121,7 +129,7 @@ jobs:
           host: ${{ env.SSH_HOST }}
           username: ${{ env.SSH_USER }}
           port: ${{ env.SSH_PORT }}
-          key: ${{ secrets.GCE_SSH_PRIVATE_KEY }}
+          key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           envs: REMOTE_DIR
           script: |
             set -e
@@ -159,7 +167,7 @@ jobs:
             docker run -d \
               --name myapp \
               --restart unless-stopped \
-              -p 8080:8080 \
+              -p 8082:8080 \
               --env-file .env \
               --log-driver json-file \
               --log-opt max-size=10m \
@@ -176,7 +184,7 @@ jobs:
 
             # Health check
             echo "🔍 Testing health endpoint..."
-            if curl -f http://localhost:8080/health; then
+            if curl -f http://localhost:8082/health; then
               echo "✅ Deployment successful! Health check passed."
               
               # Show container info
@@ -207,7 +215,7 @@ jobs:
                 docker run -d \
                   --name myapp \
                   --restart unless-stopped \
-                  -p 8080:8080 \
+                  -p 8082:8080 \
                   --env-file .env \
                   myapp:$LAST_BACKUP
               fi
@@ -222,7 +230,7 @@ jobs:
           host: ${{ env.SSH_HOST }}
           username: ${{ env.SSH_USER }}
           port: ${{ env.SSH_PORT }}
-          key: ${{ secrets.GCE_SSH_PRIVATE_KEY }}
+          key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
           script: |
             echo "📊 Container status:"
             docker ps --filter name=myapp
@@ -231,6 +239,6 @@ jobs:
             docker logs --tail 30 myapp
             echo ""
             echo "🔍 Testing endpoints:"
-            curl -s http://localhost:8080 || echo "Main endpoint failed"
+            curl -s http://localhost:8082 || echo "Main endpoint failed"
             echo ""
-            curl -s http://localhost:8080/health || echo "Health endpoint failed"
+            curl -s http://localhost:8082/health || echo "Health endpoint failed"
