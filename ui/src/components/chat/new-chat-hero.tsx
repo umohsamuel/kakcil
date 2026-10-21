@@ -45,8 +45,9 @@ export function NewChatHero({ hasKeys, onSend }: NewChatHeroProps) {
             <div className="space-y-1">
               <h2 className="font-semibold">Add an API key to get started</h2>
               <p className="text-muted-foreground text-sm">
-                Kakcil runs on your own OpenAI, Anthropic or Google keys. They
-                are encrypted at rest and only used for your requests.
+                Kakcil runs on your own OpenAI, Anthropic, Google, DeepSeek, xAI
+                or Moonshot keys. They are encrypted at rest and only used for
+                your requests.
               </p>
             </div>
             <Button asChild>

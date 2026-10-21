@@ -8,22 +8,9 @@ import {
 } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { AuthActions, LandingNav } from "@/components/landing/landing-nav";
-import { CouncilPreview } from "@/components/landing/council-preview";
-
-const STEPS = [
-  {
-    title: "Ask once",
-    body: "Send a question to your council — the models you picked from OpenAI, Anthropic and Google.",
-  },
-  {
-    title: "Every model answers",
-    body: "Responses stream in side by side so you can compare how each model thinks.",
-  },
-  {
-    title: "The council votes",
-    body: "Each model scores the others on accuracy, completeness, clarity, relevance and concision. The best answer wins.",
-  },
-];
+import { ProductDemo } from "@/components/landing/product-demo";
+import { HowItWorks } from "@/components/landing/how-it-works";
+import { AsciiGravity } from "@/components/ascii/ascii-gravity";
 
 const FEATURES = [
   {
@@ -54,7 +41,7 @@ const FEATURES = [
   {
     icon: Layers,
     title: "Your council, your call",
-    body: "Mix up to six models across providers and change them whenever you like.",
+    body: "Mix up to six models across six providers and change them whenever you like.",
   },
 ];
 
@@ -66,50 +53,48 @@ export default function Home() {
       <main>
         <section className="relative overflow-hidden">
           <div className="bg-dots pointer-events-none absolute inset-0 [mask-image:radial-gradient(ellipse_at_top,black,transparent_70%)]" />
-          <div className="relative mx-auto max-w-6xl px-4 pt-20 pb-16 text-center md:px-6 md:pt-28">
-            <div className="animate-fade-up mx-auto max-w-3xl space-y-6">
-              <span className="text-muted-foreground bg-surface inline-flex items-center gap-2 rounded-full border px-3 py-1 font-mono text-[11px] tracking-wide uppercase">
-                <span className="bg-foreground size-1.5 rounded-full" />
-                Multi-model consensus
-              </span>
-              <h1 className="text-4xl font-semibold tracking-tight text-balance sm:text-5xl md:text-6xl">
-                Ask once.
-                <br />
-                Let the council decide.
-              </h1>
-              <p className="text-muted-foreground mx-auto max-w-xl text-base text-balance md:text-lg">
-                Kakcil sends your question to several AI models, has them vote
-                on each other&apos;s answers, and gives you the one they agree
-                is best.
-              </p>
-              <div className="flex items-center justify-center gap-2 pt-2">
-                <AuthActions size="lg" />
+          <div className="relative mx-auto max-w-6xl px-4 pt-32 pb-14 md:px-6 md:pt-40">
+            <div className="animate-fade-up flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
+              <div className="max-w-2xl space-y-6">
+                <span className="text-muted-foreground bg-surface inline-flex items-center gap-2 rounded-full border px-3 py-1 font-mono text-[11px] tracking-wide uppercase">
+                  <span className="bg-foreground size-1.5 rounded-full" />
+                  Multi-model consensus
+                </span>
+                <h1 className="text-4xl font-semibold tracking-tight text-balance sm:text-5xl md:text-6xl">
+                  Ask once.
+                  <br />
+                  Let the council decide.
+                </h1>
+              </div>
+              <div className="max-w-sm space-y-6 md:pb-2">
+                <p className="text-muted-foreground text-base md:text-lg">
+                  Kakcil sends your question to several AI models, has them vote
+                  on each other&apos;s answers, and gives you the one they agree
+                  is best.
+                </p>
+                <div className="flex items-center gap-2">
+                  <AuthActions size="lg" />
+                </div>
               </div>
             </div>
           </div>
-          <div className="relative mx-auto max-w-5xl px-4 pb-24 md:px-6">
-            <CouncilPreview />
+          <div className="relative mx-auto max-w-6xl px-4 pb-24 md:px-6">
+            <ProductDemo />
           </div>
         </section>
 
         <section id="how-it-works" className="scroll-mt-16 border-t">
           <div className="mx-auto max-w-6xl px-4 py-20 md:px-6">
-            <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">
-              How it works
-            </h2>
-            <ol className="mt-10 grid gap-6 md:grid-cols-3">
-              {STEPS.map((step, index) => (
-                <li key={step.title} className="space-y-3">
-                  <span className="text-muted-foreground font-mono text-xs">
-                    0{index + 1}
-                  </span>
-                  <h3 className="font-semibold">{step.title}</h3>
-                  <p className="text-muted-foreground text-sm leading-relaxed">
-                    {step.body}
-                  </p>
-                </li>
-              ))}
-            </ol>
+            <div className="max-w-xl space-y-3">
+              <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">
+                How it works
+              </h2>
+              <p className="text-muted-foreground">
+                One question, a council of models, and a vote on the best
+                answer.
+              </p>
+            </div>
+            <HowItWorks />
           </div>
         </section>
 
@@ -131,22 +116,22 @@ export default function Home() {
             </div>
           </div>
         </section>
-
-        <section className="border-t">
-          <div className="mx-auto flex max-w-6xl flex-col items-center gap-6 px-4 py-20 text-center md:px-6">
-            <h2 className="text-2xl font-semibold tracking-tight text-balance md:text-3xl">
-              Stop trusting a single model.
-            </h2>
-            <div className="flex items-center gap-2">
-              <AuthActions size="lg" />
-            </div>
-          </div>
-        </section>
       </main>
 
       <footer className="border-t">
-        <div className="text-muted-foreground mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-4 py-8 text-sm md:flex-row md:px-6">
+        <AsciiGravity
+          lines={["KAKCIL"]}
+          cellSize={8}
+          mobileCellSize={5}
+          cellGap={2}
+          className="h-[34vh] min-h-56 md:h-[46vh]"
+          label="Kakcil"
+        />
+        <div className="text-muted-foreground mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 border-t px-4 py-6 text-sm md:flex-row md:px-6">
           <Logo className="text-foreground" size={20} />
+          <p className="font-mono text-xs">
+            Hover to disturb the council · click to scatter
+          </p>
           <p>© {new Date().getFullYear()} Kakcil</p>
         </div>
       </footer>

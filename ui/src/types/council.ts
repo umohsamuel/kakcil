@@ -1,6 +1,8 @@
 // Council member types for the frontend
 
-export type AIProvider = "anthropic" | "openai" | "google";
+import type { AIProvider } from "./api-key";
+
+export type { AIProvider };
 
 export interface CouncilMember {
   id: string;

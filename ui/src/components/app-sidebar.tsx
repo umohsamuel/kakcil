@@ -146,7 +146,7 @@ export function AppSidebar() {
         <Button
           asChild
           variant="outline"
-          className="bg-background w-full justify-start gap-2"
+          className="bg-surface hover:bg-muted w-full justify-start gap-2"
         >
           <Link href="/chat" onClick={closeOnMobile}>
             <Plus />

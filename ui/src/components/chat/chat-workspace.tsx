@@ -229,7 +229,7 @@ export function ChatWorkspace({ chatId }: { chatId?: string }) {
   return (
     <div className="flex min-h-0 flex-1">
       <div className="relative flex min-w-0 flex-1 flex-col">
-        <header className="bg-background/80 absolute inset-x-0 top-0 z-10 flex items-center gap-3 border-b px-4 py-2.5 backdrop-blur md:px-5">
+        <header className="bg-canvas/80 absolute inset-x-0 top-0 z-10 flex items-center gap-3 border-b px-4 py-2.5 backdrop-blur md:px-5">
           <h1 className="min-w-0 flex-1 truncate text-sm font-medium">
             {graphQuery.data?.chat.title ||
               stream?.topic ||

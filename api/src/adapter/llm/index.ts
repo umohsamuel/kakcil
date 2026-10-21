@@ -15,6 +15,9 @@ import {
 import { createOpenAI } from "@ai-sdk/openai";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createAnthropic } from "@ai-sdk/anthropic";
+import { createDeepSeek } from "@ai-sdk/deepseek";
+import { createXai } from "@ai-sdk/xai";
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import type LLMRepository from "@/domain/llm/repository";
 import { BadRequestError } from "@/infrastructure/errors/badRequest";
 import { getVotingPrompt } from "@/infrastructure/llm/prompts/vote.ts";
@@ -25,6 +28,7 @@ import type { CouncilMember } from "@/domain/council/entity.ts";
 import type { ModelName } from "@/domain/model/entity.ts";
 import type UserApiKeyRepository from "@/domain/user/api_key/repository";
 import { decryptApiKey } from "@/infrastructure/utils/encryption";
+import { JSON_MODE_PROVIDERS, KIMI_BASE_URL } from "@/infrastructure/model";
 
 export default class LLMAdapter implements LLMRepository {
   secrets: Secrets;
@@ -66,16 +70,47 @@ export default class LLMAdapter implements LLMRepository {
     }
 
     const apiKey = decryptApiKey(userApiKey.encrypted_key);
+    const jsonMode = JSON_MODE_PROVIDERS.includes(provider);
 
-    if (provider === "anthropic") {
-      return createAnthropic({ apiKey })(model_name);
+    switch (provider) {
+      case "anthropic":
+        return { model: createAnthropic({ apiKey })(model_name), jsonMode };
+      case "openai":
+        return { model: createOpenAI({ apiKey })(model_name), jsonMode };
+      case "google":
+        return {
+          model: createGoogleGenerativeAI({ apiKey })(model_name),
+          jsonMode,
+        };
+      case "deepseek":
+        return { model: createDeepSeek({ apiKey })(model_name), jsonMode };
+      case "xai":
+        return { model: createXai({ apiKey })(model_name), jsonMode };
+      case "kimi":
+        return {
+          model: createOpenAICompatible({
+            name: "kimi",
+            apiKey,
+            baseURL: KIMI_BASE_URL,
+          }).chatModel(model_name),
+          jsonMode,
+        };
+      default:
+        throw new BadRequestError(`Unsupported provider: ${provider}`);
     }
+  }
 
-    if (provider === "openai") {
-      return createOpenAI({ apiKey })(model_name);
-    }
+  private async jsonInstruction<T>(
+    output: Output.Output<T> | undefined,
+    jsonMode: boolean,
+  ) {
+    if (!output || !jsonMode) return undefined;
 
-    return createGoogleGenerativeAI({ apiKey })(model_name);
+    const format = await output.responseFormat;
+    if (format?.type !== "json" || !format.schema) return undefined;
+
+    return `Respond with only a valid JSON object, no markdown fences, that matches this JSON schema:
+${JSON.stringify(format.schema)}`;
   }
 
   async streamText<T = string>(
@@ -89,10 +124,11 @@ export default class LLMAdapter implements LLMRepository {
       throw new BadRequestError("prompt is required");
     }
 
-    const model = await this.resolveModel(request.model, user_id);
+    const { model, jsonMode } = await this.resolveModel(request.model, user_id);
 
     const { partialOutputStream } = sdkStreamText({
       model,
+      system: await this.jsonInstruction(output, jsonMode),
       messages: [
         ...(messageHistory ?? []),
         { role: "user", content: request.prompt },
@@ -136,10 +172,11 @@ export default class LLMAdapter implements LLMRepository {
       throw new BadRequestError("prompt is required");
     }
 
-    const model = await this.resolveModel(request.model, user_id);
+    const { model, jsonMode } = await this.resolveModel(request.model, user_id);
 
     const result = await sdkGenerateText({
       model,
+      system: await this.jsonInstruction(output, jsonMode),
       messages: [
         ...(messageHistory ?? []),
         { role: "user", content: request.prompt },

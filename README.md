@@ -42,7 +42,7 @@ When a user sends a message, all council members generate responses in parallel.
 
 **API Key Management**
 
-- Bring your own API keys for OpenAI, Anthropic, or Google
+- Bring your own API keys for OpenAI, Anthropic, Google, DeepSeek, xAI (Grok) or Moonshot (Kimi)
 - Keys are encrypted at rest
 - Enable or disable keys without deletion
 

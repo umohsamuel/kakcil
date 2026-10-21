@@ -26,7 +26,14 @@ export const MODEL_CONFIGS = {
     "gemini-2.0-flash",
     "gemini-2.0-flash-lite",
   ] as const,
+  deepseek: ["deepseek-chat", "deepseek-reasoner"] as const,
+  xai: ["grok-4", "grok-3", "grok-3-mini"] as const,
+  kimi: ["kimi-k2-0905-preview", "kimi-k2-turbo-preview"] as const,
 } as const;
+
+export const JSON_MODE_PROVIDERS: readonly string[] = ["deepseek", "kimi"];
+
+export const KIMI_BASE_URL = "https://api.moonshot.ai/v1";
 
 export const DEFAULT_COUNCIL_MODELS = [
   // "claude-haiku-4-5-20251001",
@@ -38,6 +45,9 @@ export const DEFAULT_MODEL_BY_PROVIDER = {
   anthropic: "claude-haiku-4-5-20251001",
   openai: "gpt-4o-mini",
   google: "gemini-2.5-flash-lite",
+  deepseek: "deepseek-chat",
+  xai: "grok-3-mini",
+  kimi: "kimi-k2-turbo-preview",
 } as const;
 
 export const MODEL_DESCRIPTIONS: Record<ModelName, string> = {
@@ -78,4 +88,14 @@ export const MODEL_DESCRIPTIONS: Record<ModelName, string> = {
 
   "gemini-2.0-flash-lite":
     "Gemini 2.0 Flash-Lite is deprecated and will be shut down on March 31, 2026.",
+
+  "deepseek-chat": "DeepSeek's general chat model, strong and inexpensive",
+  "deepseek-reasoner": "DeepSeek's reasoning model for harder problems",
+
+  "grok-4": "xAI's most capable Grok model",
+  "grok-3": "Balanced Grok model for everyday tasks",
+  "grok-3-mini": "Fast, lightweight Grok model",
+
+  "kimi-k2-0905-preview": "Moonshot's Kimi K2 with long context",
+  "kimi-k2-turbo-preview": "Faster Kimi K2 for quick responses",
 };
