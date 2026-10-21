@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import {
   GitBranch,
   KeyRound,
@@ -6,17 +7,23 @@ import {
   Radio,
   Vote,
 } from "lucide-react";
-import { Logo } from "@/components/brand/logo";
-import { AuthActions, LandingNav } from "@/components/landing/landing-nav";
+import { LandingNav } from "@/components/landing/landing-nav";
+import { Hero } from "@/components/landing/hero";
 import { ProductDemo } from "@/components/landing/product-demo";
 import { HowItWorks } from "@/components/landing/how-it-works";
+import { SpotlightCard } from "@/components/landing/spotlight-card";
 import { AsciiGravity } from "@/components/ascii/ascii-gravity";
+import { cn } from "@/lib/utils";
+
+const STATEMENT =
+  "Six providers. Your keys. One answer the models agree on, and every other answer one click away.";
 
 const FEATURES = [
   {
     icon: Network,
     title: "A canvas, not a transcript",
     body: "Every conversation is a graph of prompts, responses and answers you can pan, zoom and revisit.",
+    className: "lg:col-span-2",
   },
   {
     icon: GitBranch,
@@ -31,109 +38,113 @@ const FEATURES = [
   {
     icon: KeyRound,
     title: "Bring your own keys",
-    body: "Use your own provider keys. They're encrypted at rest and only used for your requests.",
+    body: "OpenAI, Anthropic, Google, DeepSeek, xAI and Moonshot. Encrypted at rest, used only for your requests.",
+    className: "lg:col-span-2",
   },
   {
     icon: Radio,
     title: "Live streaming",
-    body: "Watch each model write in real time, even if you navigate to another chat.",
+    body: "Watch each model write in real time, even after you navigate to another chat.",
   },
   {
     icon: Layers,
     title: "Your council, your call",
-    body: "Mix up to six models across six providers and change them whenever you like.",
+    body: "Mix up to six models across providers and change them whenever you like.",
   },
 ];
 
 export default function Home() {
   return (
-    <div className="bg-background min-h-dvh">
+    <div className="bg-background min-h-dvh overflow-x-clip">
       <LandingNav />
 
       <main>
-        <section className="relative overflow-hidden">
-          <div className="bg-dots pointer-events-none absolute inset-0 [mask-image:radial-gradient(ellipse_at_top,black,transparent_70%)]" />
-          <div className="relative mx-auto max-w-6xl px-4 pt-32 pb-14 md:px-6 md:pt-40">
-            <div className="animate-fade-up flex flex-col gap-8 md:flex-row md:items-end md:justify-between">
-              <div className="max-w-2xl space-y-6">
-                <span className="text-muted-foreground bg-surface inline-flex items-center gap-2 rounded-full border px-3 py-1 font-mono text-[11px] tracking-wide uppercase">
-                  <span className="bg-foreground size-1.5 rounded-full" />
-                  Multi-model consensus
-                </span>
-                <h1 className="text-4xl font-semibold tracking-tight text-balance sm:text-5xl md:text-6xl">
-                  Ask once.
-                  <br />
-                  Let the council decide.
-                </h1>
-              </div>
-              <div className="max-w-sm space-y-6 md:pb-2">
-                <p className="text-muted-foreground text-base md:text-lg">
-                  Kakcil sends your question to several AI models, has them vote
-                  on each other&apos;s answers, and gives you the one they agree
-                  is best.
-                </p>
-                <div className="flex items-center gap-2">
-                  <AuthActions size="lg" />
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="relative mx-auto max-w-6xl px-4 pb-24 md:px-6">
-            <ProductDemo />
-          </div>
+        <Hero />
+
+        <section
+          id="showcase"
+          className="relative mx-auto max-w-6xl scroll-mt-20 px-4 pb-28 md:px-6"
+        >
+          <ProductDemo />
         </section>
 
-        <section id="how-it-works" className="scroll-mt-16 border-t">
-          <div className="mx-auto max-w-6xl px-4 py-20 md:px-6">
-            <div className="max-w-xl space-y-3">
-              <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">
-                How it works
-              </h2>
-              <p className="text-muted-foreground">
-                One question, a council of models, and a vote on the best
-                answer.
-              </p>
-            </div>
-            <HowItWorks />
-          </div>
+        <section className="mx-auto max-w-5xl px-4 py-24 md:px-6 md:py-36">
+          <p className="statement text-center text-[clamp(1.9rem,4.6vw,3.75rem)] leading-[1.08] font-semibold tracking-[-0.03em] text-balance">
+            {STATEMENT.split(" ").map((word, index) => (
+              <span
+                key={`${word}-${index}`}
+                className="reveal-word"
+                style={{ "--i": index } as CSSProperties}
+              >
+                {word}{" "}
+              </span>
+            ))}
+          </p>
         </section>
 
-        <section id="features" className="scroll-mt-16 border-t">
-          <div className="mx-auto max-w-6xl px-4 py-20 md:px-6">
-            <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">
+        <section
+          id="how-it-works"
+          className="mx-auto max-w-6xl scroll-mt-20 px-4 py-20 md:px-6"
+        >
+          <div className="mx-auto max-w-xl space-y-3 text-center">
+            <p className="text-muted-foreground font-mono text-xs tracking-widest uppercase">
+              How it works
+            </p>
+            <h2 className="text-3xl font-semibold tracking-tight md:text-5xl">
+              Three steps to a better answer
+            </h2>
+          </div>
+          <HowItWorks />
+        </section>
+
+        <section
+          id="features"
+          className="mx-auto max-w-6xl scroll-mt-20 px-4 py-20 md:px-6"
+        >
+          <div className="mx-auto max-w-xl space-y-3 text-center">
+            <p className="text-muted-foreground font-mono text-xs tracking-widest uppercase">
+              Features
+            </p>
+            <h2 className="text-3xl font-semibold tracking-tight md:text-5xl">
               Built for better answers
             </h2>
-            <div className="bg-border mt-10 grid gap-px overflow-hidden rounded-2xl border sm:grid-cols-2 lg:grid-cols-3">
-              {FEATURES.map(({ icon: Icon, title, body }) => (
-                <div key={title} className="bg-background space-y-3 p-6">
+          </div>
+          <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {FEATURES.map(({ icon: Icon, title, body, className }) => (
+              <SpotlightCard
+                key={title}
+                className={cn(
+                  "flex min-h-56 flex-col justify-between gap-10",
+                  className
+                )}
+              >
+                <span className="bg-background flex size-11 items-center justify-center rounded-2xl transition-transform duration-500 ease-out group-hover:scale-110 group-hover:-rotate-6">
                   <Icon className="size-5" />
-                  <h3 className="font-medium">{title}</h3>
-                  <p className="text-muted-foreground text-sm leading-relaxed">
+                </span>
+                <div className="space-y-2">
+                  <h3 className="text-lg font-semibold tracking-tight">
+                    {title}
+                  </h3>
+                  <p className="text-muted-foreground max-w-md text-sm leading-relaxed">
                     {body}
                   </p>
                 </div>
-              ))}
-            </div>
+              </SpotlightCard>
+            ))}
           </div>
         </section>
       </main>
 
-      <footer className="border-t">
+      <footer className="mx-auto max-w-6xl px-4 pt-10 pb-6 md:px-6">
         <AsciiGravity
           lines={["KAKCIL"]}
-          cellSize={8}
+          cellSize={9}
           mobileCellSize={5}
           cellGap={2}
-          className="h-[34vh] min-h-56 md:h-[46vh]"
+          className="aspect-[4/1] w-full"
           label="Kakcil"
+          fill
         />
-        <div className="text-muted-foreground mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 border-t px-4 py-6 text-sm md:flex-row md:px-6">
-          <Logo className="text-foreground" size={20} />
-          <p className="font-mono text-xs">
-            Hover to disturb the council · click to scatter
-          </p>
-          <p>© {new Date().getFullYear()} Kakcil</p>
-        </div>
       </footer>
     </div>
   );

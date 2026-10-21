@@ -18,6 +18,7 @@ interface AsciiGravityProps {
   cellGap?: number;
   threshold?: number;
   entrance?: boolean;
+  fill?: boolean;
   className?: string;
   label?: string;
 }
@@ -38,6 +39,7 @@ export function AsciiGravity({
   cellGap = 2,
   threshold = 0.3,
   entrance = true,
+  fill = false,
   className,
   label,
 }: AsciiGravityProps) {
@@ -108,12 +110,17 @@ export function AsciiGravity({
       });
       if (!sampler) return;
 
-      drawTextLines(sampler, textLines, {
-        x: 0,
-        y: 0,
-        width: cols,
-        height: rows,
-      });
+      drawTextLines(
+        sampler,
+        textLines,
+        {
+          x: 0,
+          y: 0,
+          width: cols,
+          height: rows,
+        },
+        fill
+      );
       const data = sampler.getImageData(0, 0, cols, rows).data;
       for (let i = 0; i < cols * rows; i++) {
         const p = i * 4;
@@ -236,6 +243,7 @@ export function AsciiGravity({
     cellGap,
     threshold,
     entrance,
+    fill,
   ]);
 
   return (

@@ -59,7 +59,9 @@ export default class CouncilService {
       members = await this.councilRepository.findMembersByUserId(user_id);
     }
 
-    return members;
+    return members.filter((member) =>
+      this.modelRepository.isValidModel(member.model_name),
+    );
   }
 
   async updateUserCouncil(

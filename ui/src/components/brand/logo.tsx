@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -16,33 +17,14 @@ export function LogoMark({
   className?: string;
 }) {
   return (
-    <svg
+    <Image
+      src="/logo.png"
+      alt=""
       width={size}
       height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      aria-hidden
-      className={cn("shrink-0", className)}
-    >
-      <path
-        d="M5 6.5 12 17.5M12 6.5v11M19 6.5 12 17.5"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-      />
-      <circle cx="5" cy="5.5" r="2.25" fill="currentColor" />
-      <circle cx="12" cy="5.5" r="2.25" fill="currentColor" />
-      <circle cx="19" cy="5.5" r="2.25" fill="currentColor" />
-      <circle
-        cx="12"
-        cy="18"
-        r="3.6"
-        fill="var(--background, #fff)"
-        stroke="currentColor"
-        strokeWidth="1.8"
-      />
-      <circle cx="12" cy="18" r="1.5" fill="currentColor" />
-    </svg>
+      priority
+      className={cn("shrink-0 invert dark:invert-0", className)}
+    />
   );
 }
 

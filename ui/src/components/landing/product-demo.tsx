@@ -1,7 +1,21 @@
 "use client";
 
-import { useState, type CSSProperties, type ReactNode } from "react";
-import { ArrowUp, Crown, GitBranch, Plus } from "lucide-react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
+import {
+  ArrowUp,
+  Crown,
+  GitBranch,
+  MousePointer2,
+  Pause,
+  Play,
+  Plus,
+} from "lucide-react";
 import { LogoMark } from "@/components/brand/logo";
 import { cn } from "@/lib/utils";
 
@@ -18,7 +32,7 @@ const RESPONSES: (Box & { model: string; lines: string[]; at: number })[] = [
     y: 170,
     w: 190,
     h: 104,
-    model: "gpt-4o",
+    model: "gpt-6.1-sol",
     lines: ["Go: simple syntax,", "fast builds, great", "for services."],
     at: 1.6,
   },
@@ -27,7 +41,7 @@ const RESPONSES: (Box & { model: string; lines: string[]; at: number })[] = [
     y: 170,
     w: 190,
     h: 104,
-    model: "claude-sonnet-4-5",
+    model: "claude-opus-5-5",
     lines: ["Depends on the goal.", "Go to ship fast,", "Rust for control."],
     at: 1.9,
   },
@@ -36,7 +50,7 @@ const RESPONSES: (Box & { model: string; lines: string[]; at: number })[] = [
     y: 170,
     w: 190,
     h: 104,
-    model: "gemini-2.5-pro",
+    model: "gemini-4-argon",
     lines: ["Rust gives memory", "safety without a", "garbage collector."],
     at: 2.2,
   },
@@ -44,6 +58,13 @@ const RESPONSES: (Box & { model: string; lines: string[]; at: number })[] = [
 const ANSWER: Box = { x: 265, y: 350, w: 240, h: 88 };
 const BRANCH_PROMPT: Box = { x: 735, y: 300, w: 220, h: 62 };
 const BRANCH_ANSWER: Box = { x: 735, y: 430, w: 220, h: 76 };
+
+const CHAPTERS = [
+  { label: "Ask once", start: 0, end: 13 },
+  { label: "Every model answers", start: 13, end: 33 },
+  { label: "The council votes", start: 33, end: 50 },
+  { label: "Branch from any answer", start: 50, end: 100 },
+];
 
 const pct = (value: number, total: number) => `${(value / total) * 100}%`;
 
@@ -106,7 +127,7 @@ function DemoStage() {
   const branchSource = RESPONSES[2]!;
 
   return (
-    <div className="absolute inset-0 [font-size:clamp(5px,1.35cqw,13px)]">
+    <div className="demo-camera absolute inset-0 [font-size:clamp(5px,1.35cqw,13px)]">
       <svg
         viewBox={`0 0 ${STAGE.w} ${STAGE.h}`}
         preserveAspectRatio="none"
@@ -193,6 +214,17 @@ function DemoStage() {
       ))}
 
       <div
+        className="demo-menu bg-surface shadow-float absolute flex items-center gap-[0.4em] rounded-[0.6em] border px-[0.7em] py-[0.45em] font-mono text-[0.7em]"
+        style={{
+          left: pct(branchSource.x + 70, STAGE.w),
+          top: pct(branchSource.y + branchSource.h + 6, STAGE.h),
+        }}
+      >
+        <GitBranch className="size-[1.1em]" />
+        Branch from here
+      </div>
+
+      <div
         className="demo-blink text-muted-foreground absolute font-mono text-[0.7em] uppercase"
         style={{
           left: pct(ANSWER.x, STAGE.w),
@@ -262,7 +294,7 @@ function DemoStage() {
             style={delay(8.2)}
           >
             <GitBranch className="size-[1.1em]" />
-            Branching from gemini-2.5-pro
+            Branching from gemini-4-argon
           </div>
           <div className="flex items-center gap-[0.6em] px-[0.9em] py-[0.6em]">
             <div className="relative h-[1.5em] flex-1 text-[0.85em]">
@@ -285,12 +317,16 @@ function DemoStage() {
           </div>
         </div>
       </div>
+
+      <MousePointer2
+        aria-hidden
+        className="demo-cursor fill-foreground text-background absolute size-[1.8em] drop-shadow-md"
+      />
     </div>
   );
 }
 
 const SIDEBAR_CHATS = [
-  "Rust or Go for backend",
   "Explain the CAP theorem",
   "Pricing page copy ideas",
   "Is a tomato a fruit?",
@@ -298,9 +334,27 @@ const SIDEBAR_CHATS = [
 
 export function ProductDemo() {
   const [cycle, setCycle] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const frameRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      frame.toggleAttribute("data-offscreen", !entry?.isIntersecting);
+    });
+    observer.observe(frame);
+    return () => observer.disconnect();
+  }, []);
 
   return (
-    <div className="hero-frame bg-surface shadow-float overflow-hidden rounded-2xl border">
+    <div
+      ref={frameRef}
+      className={cn(
+        "hero-frame bg-surface shadow-float group/demo relative overflow-hidden rounded-[1.25rem] border",
+        paused && "demo-paused"
+      )}
+    >
       <div className="flex items-center gap-2 border-b px-4 py-2.5">
         <span className="bg-border-strong size-2.5 rounded-full" />
         <span className="bg-border-strong size-2.5 rounded-full" />
@@ -309,7 +363,8 @@ export function ProductDemo() {
           kakcil.app/chat
         </span>
       </div>
-      <div className="flex">
+
+      <div key={cycle} className="flex">
         <aside className="bg-sidebar hidden w-[19%] shrink-0 flex-col gap-3 border-r p-3 md:flex">
           <div className="flex items-center gap-2 px-1">
             <LogoMark size={16} />
@@ -320,21 +375,24 @@ export function ProductDemo() {
             New chat
           </div>
           <div className="text-muted-foreground px-1 text-[10px]">Today</div>
-          {SIDEBAR_CHATS.map((chat, index) => (
+          <div
+            className="demo-in bg-muted truncate rounded-md px-2 py-1 text-[11px]"
+            style={delay(1.2)}
+          >
+            Rust or Go for backend
+          </div>
+          {SIDEBAR_CHATS.map((chat) => (
             <div
               key={chat}
-              className={cn(
-                "truncate rounded-md px-2 py-1 text-[11px]",
-                index === 0 ? "bg-muted" : "text-muted-foreground"
-              )}
+              className="text-muted-foreground truncate rounded-md px-2 py-1 text-[11px]"
             >
               {chat}
             </div>
           ))}
         </aside>
-        <div className="bg-canvas bg-dots [container-type:inline-size] relative aspect-[5/3] min-w-0 flex-1">
+
+        <div className="bg-canvas bg-dots [container-type:inline-size] relative aspect-[5/3] min-w-0 flex-1 overflow-hidden">
           <div
-            key={cycle}
             className="demo-cycle absolute inset-0"
             style={{ animationDuration: `${CYCLE_SECONDS}s` }}
             onAnimationEnd={(event) => {
@@ -346,6 +404,53 @@ export function ProductDemo() {
             <DemoStage />
           </div>
         </div>
+      </div>
+
+      <div className="flex items-center gap-3 border-t px-4 py-2.5">
+        <button
+          type="button"
+          onClick={() => setPaused((value) => !value)}
+          aria-label={paused ? "Play demo" : "Pause demo"}
+          className="hover:bg-muted flex size-7 items-center justify-center rounded-full transition-colors"
+        >
+          {paused ? (
+            <Play className="size-3.5 fill-current" />
+          ) : (
+            <Pause className="size-3.5 fill-current" />
+          )}
+        </button>
+        <div
+          key={`chapter-${cycle}`}
+          className="relative hidden h-5 w-44 shrink-0 sm:block"
+        >
+          {CHAPTERS.map((chapter, index) => (
+            <span
+              key={chapter.label}
+              className={`demo-caption demo-caption-${index + 1} absolute inset-0 flex items-center gap-2 text-xs font-medium whitespace-nowrap`}
+            >
+              <span className="text-muted-foreground font-mono">
+                0{index + 1}
+              </span>
+              {chapter.label}
+            </span>
+          ))}
+        </div>
+        <div key={cycle} className="bg-muted relative h-1 flex-1 rounded-full">
+          <div
+            className="demo-progress bg-foreground absolute inset-y-0 left-0 rounded-full"
+            style={{ animationDuration: `${CYCLE_SECONDS}s` }}
+          />
+          {CHAPTERS.slice(1).map((chapter) => (
+            <span
+              key={chapter.label}
+              className="bg-background absolute top-1/2 size-1.5 -translate-y-1/2 rounded-full"
+              style={{ left: `${chapter.start}%` }}
+            />
+          ))}
+        </div>
+        <span className="text-muted-foreground hidden font-mono text-[11px] sm:inline">
+          0:{String(CYCLE_SECONDS).padStart(2, "0")}
+        </span>
       </div>
     </div>
   );

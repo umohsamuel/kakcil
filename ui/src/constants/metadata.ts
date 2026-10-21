@@ -40,7 +40,7 @@ export const appMetadata: Metadata = {
     telephone: false,
   },
   icons: {
-    icon: "/icon.svg",
+    icon: "/images/logo-with-bg.jpg",
     apple: "/images/logo-with-bg.jpg",
   },
   openGraph: {
