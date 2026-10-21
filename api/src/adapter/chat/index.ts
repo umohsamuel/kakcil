@@ -28,10 +28,11 @@ export default class ChatAdapter implements ChatRepository {
       [user_id],
     );
 
-    const totalPages = Math.ceil(parseInt(count.rows[0].count) / filters.limit);
+    const total = parseInt(count.rows[0].count);
+    const totalPages = Math.ceil(total / filters.limit);
 
     const query = `
-    SELECT * FROM chats WHERE user_id = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3;
+    SELECT * FROM chats WHERE user_id = $1 ORDER BY COALESCE(last_message_at, created_at) DESC LIMIT $2 OFFSET $3;
   `;
 
     const result = await this.pgPool.query(query, [
@@ -45,7 +46,7 @@ export default class ChatAdapter implements ChatRepository {
       meta: {
         page: filters.page,
         limit: filters.limit,
-        total: result.rows.length,
+        total,
         totalPages,
       },
     } as {
@@ -54,9 +55,25 @@ export default class ChatAdapter implements ChatRepository {
     };
   }
 
+  async getById(id: string, user_id: string): Promise<IChat | null> {
+    const result = await this.pgPool.query<IChat>(
+      `SELECT * FROM chats WHERE id = $1 AND user_id = $2;`,
+      [id, user_id],
+    );
+
+    return result.rows[0] ?? null;
+  }
+
+  async touch(id: string): Promise<void> {
+    await this.pgPool.query(
+      `UPDATE chats SET last_message_at = NOW(), updated_at = NOW() WHERE id = $1;`,
+      [id],
+    );
+  }
+
   async add(chat: Omit<IChat, "id">): Promise<IChat> {
-    if (!chat.user_id || !chat.model) {
-      throw new BadRequestError("User ID, model are required");
+    if (!chat.user_id) {
+      throw new BadRequestError("User ID is required");
     }
 
     const fields: string[] = [];
@@ -169,7 +186,7 @@ export default class ChatAdapter implements ChatRepository {
       FROM chat_messages m
              LEFT JOIN council_responses cr ON m.branch_from_response_id = cr.id
       WHERE m.chat_id = $1
-        AND ($2::uuid IS NULL OR m.branch_id = $2)
+        AND m.branch_id IS NOT DISTINCT FROM $2::uuid
         AND m.is_active_branch = TRUE
       ORDER BY m.created_at ASC
         LIMIT $3 OFFSET $4
@@ -177,12 +194,10 @@ export default class ChatAdapter implements ChatRepository {
 
     const result = await this.pgPool.query(query, [
       chat_id,
-      branch_id,
+      branch_id ?? null,
       limit,
       offset,
     ]);
-
-    console.log("result.rows:", result.rows[0]);
 
     return result.rows as (IChatMessage & {
       branch_id: string | null;
@@ -192,50 +207,59 @@ export default class ChatAdapter implements ChatRepository {
     })[];
   }
 
-  async getAllMessages(
+  async getMessageById(
+    id: string,
     chat_id: string,
-    branch_id?: string | null,
-  ): Promise<IChatMessage[]> {
-    const query = `
-    SELECT * 
-    FROM chat_messages
-    WHERE chat_id = $1
-      AND ($2::uuid IS NULL OR branch_id = $2)
-      AND is_active_branch = TRUE
-    ORDER BY created_at ASC
-  `;
+  ): Promise<IChatMessage | null> {
+    const result = await this.pgPool.query<IChatMessage>(
+      `SELECT * FROM chat_messages WHERE id = $1 AND chat_id = $2;`,
+      [id, chat_id],
+    );
 
-    const result = await this.pgPool.query<IChatMessage>(query, [
-      chat_id,
-      branch_id || null,
-    ]);
+    return result.rows[0] ?? null;
+  }
+
+  async getAllMessages(chat_id: string): Promise<IChatMessage[]> {
+    const result = await this.pgPool.query<IChatMessage>(
+      `SELECT * FROM chat_messages WHERE chat_id = $1 ORDER BY created_at ASC;`,
+      [chat_id],
+    );
 
     return result.rows;
   }
 
-  async getRecentMessages(
-    chatId: string,
-    branchId: string | null,
-    limit: number = 50,
+  async getThreadMessages(
+    chat_id: string,
+    branch_id: string | null,
+    until?: Date,
   ): Promise<IChatMessage[]> {
     const query = `
-    SELECT * 
-    FROM chat_messages
-    WHERE chat_id = $1
-      AND ($2::uuid IS NULL OR branch_id = $2)
-      AND is_active_branch = TRUE
-    ORDER BY created_at DESC
-    LIMIT $3
+    SELECT m.*
+    FROM chat_messages m
+    WHERE m.chat_id = $1
+      AND m.branch_id IS NOT DISTINCT FROM $2::uuid
+      AND m.is_active_branch = TRUE
+      AND ($3::timestamptz IS NULL OR m.created_at <= $3::timestamptz)
+      AND NOT (m.role = 'assistant' AND m.branch_from_response_id IS NOT NULL)
+      AND NOT (
+        m.role = 'user'
+        AND NOT EXISTS (
+          SELECT 1 FROM chat_messages a
+          WHERE a.parent_message_id = m.id
+            AND a.role = 'assistant'
+            AND a.branch_id IS NOT DISTINCT FROM m.branch_id
+        )
+      )
+    ORDER BY m.created_at ASC
   `;
 
     const result = await this.pgPool.query<IChatMessage>(query, [
-      chatId,
-      branchId || null,
-      limit,
+      chat_id,
+      branch_id,
+      until ?? null,
     ]);
 
-    // Reverse to get chronological order
-    return result.rows.reverse();
+    return result.rows;
   }
 
   async addMessage(message: Omit<IChatMessage, "id">): Promise<IChatMessage> {

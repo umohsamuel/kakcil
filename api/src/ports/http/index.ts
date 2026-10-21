@@ -41,7 +41,10 @@ export default class ExpressHTTP {
     this.server.use(helmet());
     this.server.use(cookieParser(this.secrets.cookieSecret));
     this.server.use(
-      cors({ origin: this.secrets.clientOrigin, ...corsOptions }),
+      cors({
+        origin: [this.secrets.clientOrigin, "http://localhost:3000"],
+        ...corsOptions,
+      }),
     );
     let morganMiddleware = new MorganMiddleware();
     this.server.use(morganMiddleware.middleware);
@@ -56,7 +59,10 @@ export default class ExpressHTTP {
     this.chat();
     this.council();
     this.apiKey();
-    this.subscription();
+
+    if (this.secrets.subscriptionsEnabled) {
+      this.subscription();
+    }
 
     this.testPoolConnection();
 

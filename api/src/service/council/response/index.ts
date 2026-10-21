@@ -8,7 +8,7 @@ import type { ModelName } from "@/domain/model/entity.ts";
 
 interface LLMResponse {
   prompt: string;
-  model: ModelName;
+  model: string;
   topic?: string;
   response: string;
 }
@@ -28,62 +28,23 @@ export default class CouncilResponseService {
   async saveResponses(
     chatId: string,
     userMessageId: string,
-    llmResponses: (LLMResponse | null)[],
+    llmResponses: LLMResponse[],
     winnerModel: string,
-  ): Promise<ICouncilResponse[]> {
-    const responseDTOs: (CreateCouncilResponseDTO | null)[] = llmResponses.map(
-      (llmResponse) => {
-        if (!llmResponse) return null;
-
-        const provider = this.modelRepository.getProviderByModelName(
-          llmResponse.model,
-        );
-
-        return {
-          chat_id: chatId,
-          user_message_id: userMessageId,
-          model: llmResponse.model,
-          provider: provider || "unknown",
-          content: llmResponse.response,
-          is_winner: llmResponse.model === winnerModel,
-          votes_received: 0,
-        };
-      },
-    );
-
-    await this.councilResponseRepository.createMany(responseDTOs);
-
-    return await this.councilResponseRepository.findByUserMessageId(
-      userMessageId,
-    );
-  }
-
-  async saveResponsesWithVotes(
-    chatId: string,
-    userMessageId: string,
-    responses: Array<{
-      model: ModelName;
-      content: string;
-      votes: number;
-    }>,
-    winnerModel: string,
+    votes?: Map<string, number>,
   ): Promise<void> {
-    const responseDTOs: CreateCouncilResponseDTO[] = responses.map(
-      (response) => {
-        const provider = this.modelRepository.getProviderByModelName(
-          response.model,
-        );
-
-        return {
-          chat_id: chatId,
-          user_message_id: userMessageId,
-          model: response.model,
-          provider: provider || "unknown",
-          content: response.content,
-          is_winner: response.model === winnerModel,
-          votes_received: response.votes,
-        };
-      },
+    const responseDTOs: CreateCouncilResponseDTO[] = llmResponses.map(
+      (llmResponse) => ({
+        chat_id: chatId,
+        user_message_id: userMessageId,
+        model: llmResponse.model,
+        provider:
+          this.modelRepository.getProviderByModelName(
+            llmResponse.model as ModelName,
+          ) || "unknown",
+        content: llmResponse.response,
+        is_winner: llmResponse.model === winnerModel,
+        votes_received: votes?.get(llmResponse.model) ?? 0,
+      }),
     );
 
     await this.councilResponseRepository.createMany(responseDTOs);

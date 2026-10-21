@@ -46,6 +46,7 @@ export default class Secrets {
   refreshJWTSecret: string;
   encryptionKey: string;
   payStackSecretKey: string;
+  subscriptionsEnabled: boolean;
 
   // cloudinaryCredentials: CloundinaryCredentials;
   dbConnectionCredentials: DBConnectionCredentials;
@@ -75,7 +76,14 @@ export default class Secrets {
 
     this.encryptionKey = this.getEnvironmentVariable("ENCRYPTION_KEY");
 
-    this.payStackSecretKey = this.getEnvironmentVariable("PAYSTACK_SECRET_KEY");
+    this.subscriptionsEnabled = this.getEnvironmentVariableAsBool(
+      "SUBSCRIPTIONS_ENABLED",
+      false,
+    );
+
+    this.payStackSecretKey = this.subscriptionsEnabled
+      ? this.getEnvironmentVariable("PAYSTACK_SECRET_KEY")
+      : this.getEnvironmentVariableOrFallback("PAYSTACK_SECRET_KEY", "");
 
     // this.cloudinaryCredentials = {
     //   cloudName: this.getEnvironmentVariable("CLOUDINARY_CLOUD_NAME"),

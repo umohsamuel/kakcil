@@ -1,45 +1,155 @@
-import { Sparkles, Zap, Shield } from "lucide-react";
-import { AnimatedBackground } from "@/components/backgrounds";
-import { NavHome } from "@/components/nav/home.nav";
-import { CTAButtonClient } from "@/views/home/home.client";
+import {
+  GitBranch,
+  KeyRound,
+  Layers,
+  Network,
+  Radio,
+  Vote,
+} from "lucide-react";
+import { Logo } from "@/components/brand/logo";
+import { AuthActions, LandingNav } from "@/components/landing/landing-nav";
+import { CouncilPreview } from "@/components/landing/council-preview";
+
+const STEPS = [
+  {
+    title: "Ask once",
+    body: "Send a question to your council — the models you picked from OpenAI, Anthropic and Google.",
+  },
+  {
+    title: "Every model answers",
+    body: "Responses stream in side by side so you can compare how each model thinks.",
+  },
+  {
+    title: "The council votes",
+    body: "Each model scores the others on accuracy, completeness, clarity, relevance and concision. The best answer wins.",
+  },
+];
+
+const FEATURES = [
+  {
+    icon: Network,
+    title: "A canvas, not a transcript",
+    body: "Every conversation is a graph of prompts, responses and answers you can pan, zoom and revisit.",
+  },
+  {
+    icon: GitBranch,
+    title: "Branch from any response",
+    body: "Pick up from any model's answer, not just the winner, and keep both threads side by side.",
+  },
+  {
+    icon: Vote,
+    title: "Transparent voting",
+    body: "See which model won and how many votes each response earned.",
+  },
+  {
+    icon: KeyRound,
+    title: "Bring your own keys",
+    body: "Use your own provider keys. They're encrypted at rest and only used for your requests.",
+  },
+  {
+    icon: Radio,
+    title: "Live streaming",
+    body: "Watch each model write in real time, even if you navigate to another chat.",
+  },
+  {
+    icon: Layers,
+    title: "Your council, your call",
+    body: "Mix up to six models across providers and change them whenever you like.",
+  },
+];
+
 export default function Home() {
   return (
-    <div className="bg-background text-foreground relative flex h-dvh flex-col overflow-hidden">
-      <AnimatedBackground />
-      <NavHome />
-      <main className="relative flex h-dvh w-full flex-col items-center justify-center px-4">
-        <div className="mx-auto max-w-5xl space-y-8 text-center">
-          <h1 className="text-4xl font-black tracking-tighter md:text-7xl lg:text-7xl">
-            Decisions by
-            <br />
-            <span className="from-foreground to-foreground via-foreground/70 bg-gradient-to-r bg-clip-text text-transparent">
-              Consensus
-            </span>
-          </h1>
-          <p className="text-foreground/60 mx-auto max-w-2xl text-lg leading-relaxed font-light md:text-2xl">
-            Harness the collective intelligence of multiple AI models. Get
-            answers you can trust through democratic debate.
-          </p>
-          <CTAButtonClient />
-        </div>
+    <div className="bg-background min-h-dvh">
+      <LandingNav />
 
-        <div className="absolute bottom-20 left-1/2 hidden max-w-3xl -translate-x-1/2 flex-wrap justify-center gap-6 lg:flex">
-          {pillsInfo.map((feature, i) => (
-            <div
-              key={i}
-              className="border-foreground/10 bg-background flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium shadow-sm"
-            >
-              {feature.icon}
-              {feature.text}
+      <main>
+        <section className="relative overflow-hidden">
+          <div className="bg-dots pointer-events-none absolute inset-0 [mask-image:radial-gradient(ellipse_at_top,black,transparent_70%)]" />
+          <div className="relative mx-auto max-w-6xl px-4 pt-20 pb-16 text-center md:px-6 md:pt-28">
+            <div className="animate-fade-up mx-auto max-w-3xl space-y-6">
+              <span className="text-muted-foreground bg-surface inline-flex items-center gap-2 rounded-full border px-3 py-1 font-mono text-[11px] tracking-wide uppercase">
+                <span className="bg-foreground size-1.5 rounded-full" />
+                Multi-model consensus
+              </span>
+              <h1 className="text-4xl font-semibold tracking-tight text-balance sm:text-5xl md:text-6xl">
+                Ask once.
+                <br />
+                Let the council decide.
+              </h1>
+              <p className="text-muted-foreground mx-auto max-w-xl text-base text-balance md:text-lg">
+                Kakcil sends your question to several AI models, has them vote
+                on each other&apos;s answers, and gives you the one they agree
+                is best.
+              </p>
+              <div className="flex items-center justify-center gap-2 pt-2">
+                <AuthActions size="lg" />
+              </div>
             </div>
-          ))}
-        </div>
+          </div>
+          <div className="relative mx-auto max-w-5xl px-4 pb-24 md:px-6">
+            <CouncilPreview />
+          </div>
+        </section>
+
+        <section id="how-it-works" className="scroll-mt-16 border-t">
+          <div className="mx-auto max-w-6xl px-4 py-20 md:px-6">
+            <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">
+              How it works
+            </h2>
+            <ol className="mt-10 grid gap-6 md:grid-cols-3">
+              {STEPS.map((step, index) => (
+                <li key={step.title} className="space-y-3">
+                  <span className="text-muted-foreground font-mono text-xs">
+                    0{index + 1}
+                  </span>
+                  <h3 className="font-semibold">{step.title}</h3>
+                  <p className="text-muted-foreground text-sm leading-relaxed">
+                    {step.body}
+                  </p>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </section>
+
+        <section id="features" className="scroll-mt-16 border-t">
+          <div className="mx-auto max-w-6xl px-4 py-20 md:px-6">
+            <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">
+              Built for better answers
+            </h2>
+            <div className="bg-border mt-10 grid gap-px overflow-hidden rounded-2xl border sm:grid-cols-2 lg:grid-cols-3">
+              {FEATURES.map(({ icon: Icon, title, body }) => (
+                <div key={title} className="bg-background space-y-3 p-6">
+                  <Icon className="size-5" />
+                  <h3 className="font-medium">{title}</h3>
+                  <p className="text-muted-foreground text-sm leading-relaxed">
+                    {body}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="border-t">
+          <div className="mx-auto flex max-w-6xl flex-col items-center gap-6 px-4 py-20 text-center md:px-6">
+            <h2 className="text-2xl font-semibold tracking-tight text-balance md:text-3xl">
+              Stop trusting a single model.
+            </h2>
+            <div className="flex items-center gap-2">
+              <AuthActions size="lg" />
+            </div>
+          </div>
+        </section>
       </main>
+
+      <footer className="border-t">
+        <div className="text-muted-foreground mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-4 py-8 text-sm md:flex-row md:px-6">
+          <Logo className="text-foreground" size={20} />
+          <p>© {new Date().getFullYear()} Kakcil</p>
+        </div>
+      </footer>
     </div>
   );
 }
-const pillsInfo = [
-  { icon: <Zap className="h-4 w-4" />, text: "Real-time Debate" },
-  { icon: <Shield className="h-4 w-4" />, text: "Verified Answers" },
-  { icon: <Sparkles className="h-4 w-4" />, text: "Multiple Models" },
-];

@@ -1,24 +1,21 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { chatService } from "@/services/chat.service";
 import { queryKeys } from "@/lib/query-keys";
-import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/utils";
 
 export function useDeleteChat() {
   const queryClient = useQueryClient();
 
-  const mutation = useMutation({
+  return useMutation({
     mutationFn: (chatId: string) => chatService.deleteChat(chatId),
-    onSuccess: () => {
+    onSuccess: (_, chatId) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.chat.list() });
+      queryClient.removeQueries({ queryKey: queryKeys.chat.graph(chatId) });
       toast.success("Chat deleted");
     },
-    onError: (error: Error) => {
-      toast.error(error.message || "Failed to delete chat");
+    onError: (error) => {
+      toast.error(getErrorMessage(error, "Could not delete chat"));
     },
   });
-
-  return {
-    deleteChat: mutation.mutate,
-    isDeleting: mutation.isPending,
-  };
 }

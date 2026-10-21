@@ -58,6 +58,13 @@ const ErrorHandlerMiddleware: ErrorRequestHandler = async (
           StatusCodes.NOT_FOUND,
         ).send();
 
+      case "22P02":
+        return new ErrorResponse(
+          res,
+          "Invalid identifier",
+          StatusCodes.BAD_REQUEST,
+        ).send();
+
       case "23502":
       case "23514":
         return new ErrorResponse(

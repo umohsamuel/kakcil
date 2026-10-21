@@ -3,6 +3,15 @@ import { type ModelMessage, Output } from "ai";
 import z from "zod";
 import type { CouncilMember } from "@/domain/council/entity.ts";
 
+const PARTIAL_INTERVAL_MS = 80;
+
+export type CouncilResponse = {
+  prompt: string;
+  model: string;
+  topic: string;
+  response: string;
+};
+
 export default class LLMService {
   llmRepository: LLMRepository;
 
@@ -10,12 +19,17 @@ export default class LLMService {
     this.llmRepository = llmRepository;
   }
 
-  async promptModels(
+  async streamPromptModels(
     prompt: string,
     user_id: string,
     councilMembers: CouncilMember[],
-    messageHistory?: ModelMessage[],
-  ) {
+    messageHistory: ModelMessage[] | undefined,
+    callbacks: {
+      onPartial: (model: string, partial: string, topic?: string) => void;
+      onComplete: (response: CouncilResponse) => void;
+      onError: (model: string, error: string) => void;
+    },
+  ): Promise<Array<CouncilResponse | null>> {
     const schema = z.object({
       topic: z.string(),
       response: z.string(),
@@ -25,6 +39,8 @@ export default class LLMService {
 
     return await Promise.all(
       councilMembers.map(async (member) => {
+        let lastSentAt = 0;
+
         try {
           const result = await this.llmRepository.streamText<SchemaType>(
             {
@@ -36,76 +52,11 @@ export default class LLMService {
               schema,
             }),
             messageHistory,
-          );
-
-          if (result) {
-            return {
-              prompt,
-              model: member.model_name,
-              topic: result.response.topic,
-              response: result.response.response,
-            };
-          } else return null;
-        } catch (error) {
-          console.error(
-            `Error getting prompt response from ${member.model_name}:`,
-            error,
-          );
-
-          return null;
-        }
-      }),
-    );
-  }
-
-  /**
-   * Stream prompt responses from all models with callbacks for partial updates
-   */
-  async streamPromptModels(
-    prompt: string,
-    user_id: string,
-    councilMembers: CouncilMember[],
-    messageHistory: ModelMessage[] | undefined,
-    callbacks: {
-      onPartial: (model: string, partial: string, topic?: string) => void;
-      onComplete: (response: {
-        prompt: string;
-        model: string;
-        topic: string;
-        response: string;
-      }) => void;
-      onError: (model: string, error: string) => void;
-    },
-  ): Promise<
-    Array<{
-      prompt: string;
-      model: string;
-      topic: string;
-      response: string;
-    } | null>
-  > {
-    const schema = z.object({
-      topic: z.string(),
-      response: z.string(),
-    });
-
-    type SchemaType = z.infer<typeof schema>;
-
-    const results = await Promise.all(
-      councilMembers.map(async (member) => {
-        try {
-          const result = await this.llmRepository.streamText<SchemaType>(
-            {
-              prompt,
-              model: member.model_name,
-            },
-            user_id,
-            Output.object({
-              schema,
-            }),
-            messageHistory,
-            // onChunk callback - called for each partial update
             (partial) => {
+              const now = Date.now();
+              if (now - lastSentAt < PARTIAL_INTERVAL_MS) return;
+              lastSentAt = now;
+
               if (partial.output) {
                 callbacks.onPartial(
                   member.model_name,
@@ -118,25 +69,19 @@ export default class LLMService {
             },
           );
 
-          if (result && result.response) {
-            // result.response is the structured object {topic, response}
-            const responseData = result.response as {
-              topic: string;
-              response: string;
-            };
+          if (result && result.response?.response) {
             const response = {
               prompt,
               model: member.model_name,
-              topic: responseData.topic,
-              response: responseData.response,
+              topic: result.response.topic,
+              response: result.response.response,
             };
             callbacks.onComplete(response);
             return response;
-          } else {
-            console.error(`No response from ${member.model_name}:`, result);
-            callbacks.onError(member.model_name, "No response received");
-            return null;
           }
+
+          callbacks.onError(member.model_name, "No response received");
+          return null;
         } catch (error) {
           console.error(
             `Error getting prompt response from ${member.model_name}:`,
@@ -150,7 +95,5 @@ export default class LLMService {
         }
       }),
     );
-
-    return results;
   }
 }

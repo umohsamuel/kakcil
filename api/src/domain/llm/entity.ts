@@ -1,5 +1,5 @@
 import z from "zod";
-import type { IChatMessage } from "@/domain/chat/entity.ts";
+import type { ModelMessage } from "ai";
 import type { ModelName } from "@/domain/model/entity.ts";
 
 export interface TextGenerationRequest {
@@ -16,7 +16,7 @@ export interface TextGenerationResponse<T = string> {
 
 export interface VoteRequest {
   prompt: string;
-  history?: IChatMessage[];
+  history?: ModelMessage[];
 }
 
 export const VoteResponseSchema = z.object({
@@ -24,20 +24,23 @@ export const VoteResponseSchema = z.object({
   response: z.string(),
 });
 
+const score = () => z.number().describe("Score from 1 to 10");
+
 export const MultiCriteriaScoreSchema = z.object({
-  accuracy: z.number().min(1).max(10),
-  completeness: z.number().min(1).max(10),
-  clarity: z.number().min(1).max(10),
-  relevance: z.number().min(1).max(10),
-  conciseness: z.number().min(1).max(10),
+  accuracy: score(),
+  completeness: score(),
+  clarity: score(),
+  relevance: score(),
+  conciseness: score(),
 });
 
-export const MultiCriteriaVoteSchema = z.object({
-  topic: z.string(),
-  scores: z.object({
-    A: MultiCriteriaScoreSchema,
-    B: MultiCriteriaScoreSchema,
-    // C: MultiCriteriaScoreSchema,
-  }),
-  reasoning: z.string(),
-});
+export const createMultiCriteriaVoteSchema = (letters: string[]) =>
+  z.object({
+    topic: z.string(),
+    scores: z.object(
+      Object.fromEntries(
+        letters.map((letter) => [letter, MultiCriteriaScoreSchema]),
+      ),
+    ),
+    reasoning: z.string(),
+  });

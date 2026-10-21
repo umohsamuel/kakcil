@@ -1,104 +1,130 @@
 "use client";
 
-import { ProtectedRoute } from "@/components/protected-route";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { useSyncExternalStore } from "react";
+import { useTheme } from "next-themes";
+import { LogOut, Monitor, Moon, Sun } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ApiKeySettings } from "@/components/settings/api-key-settings";
+import { CouncilSettings } from "@/components/settings/council-settings";
+import { SettingsSection } from "@/components/settings/settings-section";
 import { useAuthStore } from "@/store/auth.store";
-import { Monitor, Moon, Sun } from "lucide-react";
-import { CouncilMembersSettings } from "@/components/council-members-settings";
-import { SubscriptionSettings } from "@/components/subscription-settings";
-import { ApiKeySettings } from "@/components/api-key-settings";
+import { useAuth } from "@/hooks/use-auth";
+import { cn } from "@/lib/utils";
 
-export default function SettingsPage() {
-  const { user } = useAuthStore();
-
-  return (
-    <ProtectedRoute>
-      <main className="bg-background text-foreground relative flex flex-1 flex-col overflow-hidden overflow-y-auto lg:h-[calc(100dvh-1.5rem)] lg:rounded-tl-4xl">
-        <div className="mx-auto w-full max-w-4xl space-y-8 p-4 lg:p-8">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-            <p className="text-muted-foreground mt-2">
-              Manage your account and preferences
-            </p>
-          </div>
-          <div className="flex flex-col items-center gap-6">
-            {/* <Card className="border-border border-2">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Monitor className="h-5 w-5" /> Appearance
-                  </CardTitle>
-                  <CardDescription>Customize how Kakcil looks</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-3 gap-4">
-                    {themes.map(({ key, label, icon: Icon }) => (
-                      <Button
-                        key={key}
-                        variant="outline"
-                        className={cn(
-                          "hover:bg-accent hover:text-accent-foreground flex h-24 flex-col gap-2 border-2",
-                          theme === key
-                            ? "border-primary bg-accent text-accent-foreground"
-                            : "border-border"
-                        )}
-                        onClick={() => setTheme(key)}
-                      >
-                        <Icon className="h-6 w-6" />
-                        <span>{label}</span>
-                      </Button>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card> */}
-            {/* Subscription Section */}
-            <SubscriptionSettings />
-
-            {/* API Keys Section */}
-            <ApiKeySettings />
-
-            {/* Council Members Section */}
-            <CouncilMembersSettings />
-            <Card className="lg:border-border w-full border-2 border-none shadow-none lg:shadow">
-              <CardHeader className="px-0 lg:px-6">
-                <CardTitle>Account</CardTitle>
-                <CardDescription>Your account information</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4 px-0 lg:px-6">
-                <div className="grid gap-2">
-                  <Label>Name</Label>
-                  <Input
-                    value={user?.name || ""}
-                    readOnly
-                    className="border-input bg-muted"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Email</Label>
-                  <Input
-                    value={user?.email || ""}
-                    readOnly
-                    className="border-input bg-muted"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </main>
-    </ProtectedRoute>
-  );
-}
-
-const _themes = [
+const THEMES = [
   { key: "light", label: "Light", icon: Sun },
   { key: "dark", label: "Dark", icon: Moon },
   { key: "system", label: "System", icon: Monitor },
 ] as const;
+
+const NAV = [
+  { href: "#api-keys", label: "API keys" },
+  { href: "#council", label: "Council" },
+  { href: "#appearance", label: "Appearance" },
+  { href: "#account", label: "Account" },
+];
+
+const subscribe = () => () => {};
+
+function AppearanceSettings() {
+  const { theme, setTheme } = useTheme();
+  const mounted = useSyncExternalStore(
+    subscribe,
+    () => true,
+    () => false
+  );
+
+  return (
+    <SettingsSection
+      id="appearance"
+      title="Appearance"
+      description="Choose a theme, or follow your system setting."
+    >
+      <div className="grid grid-cols-3 gap-3">
+        {THEMES.map(({ key, label, icon: Icon }) => {
+          const active = mounted && theme === key;
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setTheme(key)}
+              aria-pressed={active}
+              className={cn(
+                "flex flex-col items-center gap-2 rounded-xl border px-3 py-4 text-sm transition-colors",
+                active
+                  ? "border-foreground bg-surface-muted font-medium"
+                  : "text-muted-foreground hover:border-border-strong hover:text-foreground"
+              )}
+            >
+              <Icon className="size-5" />
+              {label}
+            </button>
+          );
+        })}
+      </div>
+    </SettingsSection>
+  );
+}
+
+function AccountSettings() {
+  const { user } = useAuthStore();
+  const { logout, isLoggingOut } = useAuth();
+
+  return (
+    <SettingsSection
+      id="account"
+      title="Account"
+      action={
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => logout()}
+          disabled={isLoggingOut}
+        >
+          <LogOut />
+          Log out
+        </Button>
+      }
+    >
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-2">
+          <Label htmlFor="account-name">Name</Label>
+          <Input id="account-name" value={user?.name ?? ""} readOnly />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="account-email">Email</Label>
+          <Input id="account-email" value={user?.email ?? ""} readOnly />
+        </div>
+      </div>
+    </SettingsSection>
+  );
+}
+
+export default function SettingsPage() {
+  return (
+    <div className="scrollbar-thin flex-1 overflow-y-auto">
+      <div className="mx-auto w-full max-w-3xl space-y-6 px-4 py-8 md:px-8 md:py-12">
+        <div className="space-y-4">
+          <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
+          <nav className="flex flex-wrap gap-1.5">
+            {NAV.map((item) => (
+              <a
+                key={item.href}
+                href={item.href}
+                className="text-muted-foreground hover:text-foreground hover:bg-muted rounded-full border px-3 py-1 text-xs transition-colors"
+              >
+                {item.label}
+              </a>
+            ))}
+          </nav>
+        </div>
+        <ApiKeySettings />
+        <CouncilSettings />
+        <AppearanceSettings />
+        <AccountSettings />
+      </div>
+    </div>
+  );
+}

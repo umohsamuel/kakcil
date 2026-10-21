@@ -2,8 +2,17 @@ import type { TextGenerationResponse } from "@/domain/llm/entity.ts";
 
 export function getVotingPrompt(
   originalPrompt: string,
-  promptResponse: (TextGenerationResponse | null)[],
+  promptResponse: TextGenerationResponse[],
 ) {
+  const letters = promptResponse.map((_, idx) => String.fromCharCode(65 + idx));
+
+  const exampleScores = letters
+    .map(
+      (letter) =>
+        `    "${letter}": { "accuracy": 8, "completeness": 7, "clarity": 9, "relevance": 8, "conciseness": 7 }`,
+    )
+    .join(",\n");
+
   return `
 You are evaluating multiple AI-generated responses to the same prompt. Rate each response objectively using these criteria on a scale of 1-10:
 
@@ -18,21 +27,19 @@ ${originalPrompt}
 
 Responses to evaluate:
 ${promptResponse
-  .filter((r) => r !== null)
   .map(
     (r, idx) => `
-Response ${String.fromCharCode(65 + idx)}:
-${r?.response}
+Response ${letters[idx]}:
+${r.response}
 `,
   )
   .join("\n---\n")}
 
-Respond ONLY with a JSON object in this exact format (no markdown, no extra text):
+Score every response (${letters.join(", ")}). Respond ONLY with a JSON object in this exact format (no markdown, no extra text):
 {
+  "topic": "A short title for the conversation",
   "scores": {
-    "A": { "accuracy": 8, "completeness": 7, "clarity": 9, "relevance": 8, "conciseness": 7 },
-    "B": { "accuracy": 9, "completeness": 8, "clarity": 8, "relevance": 9, "conciseness": 8 },
-    "C": { "accuracy": 7, "completeness": 9, "clarity": 7, "relevance": 8, "conciseness": 6 }
+${exampleScores}
   },
   "reasoning": "Brief explanation of your evaluation"
 }

@@ -46,11 +46,10 @@ When a user sends a message, all council members generate responses in parallel.
 - Keys are encrypted at rest
 - Enable or disable keys without deletion
 
-**Subscription Tiers**
+**Subscription Tiers** (disabled for now)
 
-- Free tier with limited daily and monthly message counts
-- Plus and Pro tiers with higher limits and access to advanced models
-- Payments handled through Paystack
+- Kakcil currently runs on bring-your-own-key only; every model call uses the user's own provider key
+- The Paystack subscription code is kept behind the `SUBSCRIPTIONS_ENABLED` flag (off by default)
 
 **User Accounts**
 
@@ -181,7 +180,7 @@ docker compose up
 | `PGPASSWORD` | Database password |
 | `PGPORT`     | Database port     |
 
-**LLM Providers** (at least one required)
+**LLM Providers** (unused while chats are BYOK-only)
 
 | Variable                       | Description       |
 | ------------------------------ | ----------------- |
@@ -199,9 +198,10 @@ docker compose up
 
 **Payments**
 
-| Variable              | Description         |
-| --------------------- | ------------------- |
-| `PAYSTACK_SECRET_KEY` | Paystack secret key |
+| Variable                | Description                                                                   |
+| ----------------------- | ----------------------------------------------------------------------------- |
+| `SUBSCRIPTIONS_ENABLED` | `true` mounts the subscription routes and message limits. Defaults to `false` |
+| `PAYSTACK_SECRET_KEY`   | Paystack secret key. Required only when subscriptions are enabled             |
 
 ### Frontend (`ui/.env.local`)
 
@@ -254,11 +254,17 @@ bun migrate:rollback   # roll back the last migration
 
 ### Chats (protected)
 
-| Method | Endpoint               | Description                   |
-| ------ | ---------------------- | ----------------------------- |
-| POST   | `/api/v1/chats`        | Send a message to the council |
-| GET    | `/api/v1/chats`        | Get conversation history      |
-| POST   | `/api/v1/chats/stream` | Stream responses via SSE      |
+| Method | Endpoint                     | Description                                                                                                      |
+| ------ | ---------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| POST   | `/api/v1/chats/new`          | Start a chat and stream the council over SSE                                                                     |
+| POST   | `/api/v1/chats`              | Stream a message over SSE. Send `branch_id` to continue a branch or `from_response_id` to branch from a response |
+| GET    | `/api/v1/chats`              | List chats (`page`, `limit`), most recently active first                                                         |
+| GET    | `/api/v1/chats/:id/graph`    | Every round, council response and branch in a chat, used by the canvas                                           |
+| GET    | `/api/v1/chats/:id/messages` | Raw messages (`limit`, `offset`, `branch_id`)                                                                    |
+| GET    | `/api/v1/chats/:id/branches` | Branches of a chat                                                                                               |
+| DELETE | `/api/v1/chats/:id`          | Delete a chat                                                                                                    |
+
+SSE events: `start`, `llmPartial`, `llmResponse`, `llmError`, `voting`, `llmVote`, `voteResponse`, `chatId`, `branch`, `saved`, `error`.
 
 ### Council (protected)
 
@@ -276,7 +282,7 @@ bun migrate:rollback   # roll back the last migration
 | GET    | `/api/v1/api-key`     | List stored keys |
 | DELETE | `/api/v1/api-key/:id` | Remove a key     |
 
-### Subscriptions (protected)
+### Subscriptions (protected, only when `SUBSCRIPTIONS_ENABLED=true`)
 
 | Method | Endpoint               | Description                    |
 | ------ | ---------------------- | ------------------------------ |

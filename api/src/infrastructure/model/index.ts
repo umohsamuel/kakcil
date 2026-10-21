@@ -31,8 +31,14 @@ export const MODEL_CONFIGS = {
 export const DEFAULT_COUNCIL_MODELS = [
   // "claude-haiku-4-5-20251001",
   "gpt-4o-mini",
-  "gemini-2.0-flash-lite",
+  "gemini-2.5-flash-lite",
 ] as const;
+
+export const DEFAULT_MODEL_BY_PROVIDER = {
+  anthropic: "claude-haiku-4-5-20251001",
+  openai: "gpt-4o-mini",
+  google: "gemini-2.5-flash-lite",
+} as const;
 
 export const MODEL_DESCRIPTIONS: Record<ModelName, string> = {
   // Anthropic Models

@@ -1,49 +1,20 @@
 export const queryKeys = {
   auth: {
     all: ["auth"] as const,
-    currentUser: () => [...queryKeys.auth.all, "current-user"] as const,
-    refreshToken: () => [...queryKeys.auth.all, "refresh-token"] as const,
-  },
-  users: {
-    all: ["users"] as const,
-    lists: () => [...queryKeys.users.all, "list"] as const,
-    list: (filters?: Record<string, any>) =>
-      [...queryKeys.users.lists(), filters] as const,
-    details: () => [...queryKeys.users.all, "detail"] as const,
-    detail: (id: string) => [...queryKeys.users.details(), id] as const,
-    byEmail: (email: string) =>
-      [...queryKeys.users.all, "email", email] as const,
   },
   chat: {
     all: ["chat"] as const,
-    lists: () => [...queryKeys.chat.all, "list"] as const,
-    list: () => [...queryKeys.chat.lists()] as const,
-    details: () => [...queryKeys.chat.all, "detail"] as const,
-    detail: (id: string) => [...queryKeys.chat.details(), id] as const,
-    messages: (chatId?: string, branchId?: string) =>
-      branchId
-        ? [...queryKeys.chat.all, "messages", chatId, branchId]
-        : chatId
-          ? [...queryKeys.chat.all, "messages", chatId]
-          : [...queryKeys.chat.all, "messages"],
-    councilResponses: (chatId: string, messageId: string) =>
-      [...queryKeys.chat.all, "council-responses", chatId, messageId] as const,
-    branches: (chatId: string) =>
-      [...queryKeys.chat.all, "branches", chatId] as const,
+    list: () => [...queryKeys.chat.all, "list"] as const,
+    graph: (chatId: string) =>
+      [...queryKeys.chat.all, "graph", chatId] as const,
   },
   council: {
     all: ["council"] as const,
     members: () => [...queryKeys.council.all, "members"] as const,
     models: () => [...queryKeys.council.all, "models"] as const,
   },
-  subscription: {
-    all: ["subscription"] as const,
-    status: () => [...queryKeys.subscription.all, "status"] as const,
-    plans: () => [...queryKeys.subscription.all, "plans"] as const,
-  },
   apiKeys: {
     all: ["apiKeys"] as const,
     list: () => [...queryKeys.apiKeys.all, "list"] as const,
   },
 } as const;
-

@@ -21,11 +21,6 @@ export default class Services {
     this.userService = new UserService(adapter.userAdapter);
     this.authenticationService = new AuthenticationService(adapter.userAdapter);
     this.llmService = new LLMService(adapter.llmAdapter);
-    this.chatService = new ChatService(
-      adapter.llmAdapter,
-      adapter.chatAdapter,
-      this.llmService,
-    );
     this.councilService = new CouncilService(
       adapter.councilAdapter,
       adapter.modelAdapter,
@@ -34,6 +29,16 @@ export default class Services {
       adapter.councilResponseAdapter,
       adapter.modelAdapter,
     );
+    this.chatService = new ChatService({
+      chatRepository: adapter.chatAdapter,
+      chatBranchRepository: adapter.chatBranchAdapter,
+      councilResponseRepository: adapter.councilResponseAdapter,
+      userApiKeyRepository: adapter.userApiKeyAdapter,
+      modelRepository: adapter.modelAdapter,
+      llmService: this.llmService,
+      councilService: this.councilService,
+      councilResponseService: this.councilResponseService,
+    });
     this.paymentService = new PaymentService(adapter);
     this.adapter = adapter;
   }
