@@ -12,6 +12,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useChatGraph } from "@/hooks/use-chat-graph";
 import { useApiKeys } from "@/hooks/use-api-keys";
 import { getErrorMessage } from "@/lib/utils";
+import { siteName } from "@/constants/metadata";
 import {
   PENDING_ID,
   answerNodeId,
@@ -117,6 +118,17 @@ export function ChatWorkspace({ chatId }: { chatId?: string }) {
     setViewingKey(streamKey);
     return () => setViewingKey(null);
   }, [streamKey, setViewingKey]);
+
+  const chatTitle = graphQuery.data?.chat.title || stream?.topic;
+
+  useEffect(() => {
+    if (!chatTitle) return;
+    const previous = document.title;
+    document.title = `${chatTitle} | ${siteName}`;
+    return () => {
+      document.title = previous;
+    };
+  }, [chatTitle]);
 
   const streaming = isStreamActive(stream);
 

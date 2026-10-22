@@ -21,6 +21,12 @@ const eslintConfig = defineConfig([
       "@typescript-eslint/no-explicit-any": "off",
     },
   },
+  {
+    files: ["src/app/**/opengraph-image.tsx", "src/app/**/twitter-image.tsx"],
+    rules: {
+      "@next/next/no-img-element": "off",
+    },
+  },
   globalIgnores([
     "node_modules/**",
     ".next/**",

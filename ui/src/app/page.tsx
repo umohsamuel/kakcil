@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { LandingNav } from "@/components/landing/landing-nav";
 import { Hero } from "@/components/landing/hero";
@@ -14,6 +15,37 @@ import {
   VotingVisual,
 } from "@/components/landing/feature-visuals";
 import { cn } from "@/lib/utils";
+import {
+  owner,
+  siteDescription,
+  siteName,
+  siteTitle,
+  webUrl,
+} from "@/constants/metadata";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    siteName,
+    url: "/",
+    title: siteTitle,
+    description: siteDescription,
+  },
+};
+
+const structuredData = {
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  name: siteName,
+  url: webUrl,
+  description: siteDescription,
+  applicationCategory: "ProductivityApplication",
+  operatingSystem: "Web",
+  offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+  creator: { "@type": "Person", name: owner.name, url: owner.url },
+  author: { "@type": "Person", name: owner.name, url: owner.url },
+};
 
 const FEATURES: {
   title: string;
@@ -58,6 +90,10 @@ const FEATURES: {
 export default function Home() {
   return (
     <div className="bg-surface-muted min-h-dvh overflow-x-clip">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
       <div className="bg-background relative z-10 rounded-b-[2rem] shadow-[0_30px_80px_-30px_rgb(0_0_0/0.25)] md:rounded-b-[3rem]">
         <LandingNav />
 

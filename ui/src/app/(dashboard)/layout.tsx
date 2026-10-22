@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { PropsWithChildren } from "react";
 import { AppSidebar } from "@/components/app-sidebar";
 import {
@@ -7,6 +8,9 @@ import {
 } from "@/components/ui/sidebar";
 import { ProtectedRoute } from "@/components/protected-route";
 import { Logo } from "@/components/brand/logo";
+import { privateRouteMetadata } from "@/constants/metadata";
+
+export const metadata: Metadata = privateRouteMetadata;
 
 export default function DashboardLayout({ children }: PropsWithChildren) {
   return (
