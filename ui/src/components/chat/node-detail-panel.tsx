@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import {
   Check,
   Copy,
@@ -12,6 +11,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MarkdownMessage } from "@/components/markdown-message";
+import { useCopy } from "@/hooks/use-copy";
 import { cn } from "@/lib/utils";
 import {
   PENDING_ID,
@@ -49,16 +49,6 @@ interface ResponseSummary {
   model: string;
   status: ModelStatus;
   votes?: number;
-}
-
-function useCopy() {
-  const [copied, setCopied] = useState(false);
-  const copy = async (text: string) => {
-    await navigator.clipboard.writeText(text);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1500);
-  };
-  return { copied, copy };
 }
 
 export function NodeDetailPanel({

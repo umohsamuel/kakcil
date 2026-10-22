@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import ReactFlow, {
   Background,
   BackgroundVariant,
@@ -61,6 +61,24 @@ function CanvasInner({
 
   const focusSignature = focusNodeIds.join("|");
 
+  const fitViewOptions = useMemo(
+    () => ({
+      ...FIT_OPTIONS,
+      duration: 0,
+      nodes: focusSignature
+        ? focusSignature.split("|").map((id) => ({ id }))
+        : undefined,
+    }),
+    [focusSignature]
+  );
+
+  const handleNodeClick = useCallback(
+    (_: unknown, node: Node<CouncilNodeData>) => onSelect(node),
+    [onSelect]
+  );
+
+  const handlePaneClick = useCallback(() => onSelect(null), [onSelect]);
+
   useEffect(() => {
     if (!focusSignature) return;
     const handle = window.setTimeout(() => {
@@ -77,8 +95,8 @@ function CanvasInner({
       nodes={renderedNodes}
       edges={edges}
       nodeTypes={nodeTypes}
-      onNodeClick={(_, node) => onSelect(node)}
-      onPaneClick={() => onSelect(null)}
+      onNodeClick={handleNodeClick}
+      onPaneClick={handlePaneClick}
       nodesDraggable={false}
       nodesConnectable={false}
       elementsSelectable={false}
@@ -86,13 +104,7 @@ function CanvasInner({
       minZoom={0.15}
       maxZoom={1.75}
       fitView
-      fitViewOptions={{
-        ...FIT_OPTIONS,
-        duration: 0,
-        nodes: focusNodeIds.length
-          ? focusNodeIds.map((id) => ({ id }))
-          : undefined,
-      }}
+      fitViewOptions={fitViewOptions}
       className="bg-canvas"
     >
       <Background

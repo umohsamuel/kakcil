@@ -1,9 +1,9 @@
 "use client";
 
-import { useRef, type PointerEvent } from "react";
 import Link from "next/link";
 import { ArrowRight, ArrowUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { usePointerFrame } from "@/hooks/use-pointer-frame";
 
 const LINKS = [
   {
@@ -26,20 +26,16 @@ const LINKS = [
 
 const WORDMARK = "KAKCIL".split("");
 
-export function SiteFooter() {
-  const rootRef = useRef<HTMLElement>(null);
+function setFooterPointer(root: HTMLElement, x: number, y: number) {
+  root.style.setProperty("--fx", `${x}px`);
+  root.style.setProperty("--fy", `${y}px`);
+}
 
-  const handlePointerMove = (event: PointerEvent<HTMLElement>) => {
-    const root = rootRef.current;
-    if (!root) return;
-    const rect = root.getBoundingClientRect();
-    root.style.setProperty("--fx", `${event.clientX - rect.left}px`);
-    root.style.setProperty("--fy", `${event.clientY - rect.top}px`);
-  };
+export function SiteFooter() {
+  const handlePointerMove = usePointerFrame(setFooterPointer);
 
   return (
     <footer
-      ref={rootRef}
       onPointerMove={handlePointerMove}
       className="bg-surface-muted sticky bottom-0 isolate z-0 flex h-[92svh] min-h-[34rem] flex-col overflow-hidden [--fx:50%] [--fy:70%]"
     >
