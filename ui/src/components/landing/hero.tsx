@@ -8,19 +8,13 @@ import { useAuthStore } from "@/store/auth.store";
 import { useHydration } from "@/hooks/use-hydrate";
 import { cn } from "@/lib/utils";
 
-const MARQUEE = [
-  "claude-opus-5-5",
-  "gpt-6.1-sol",
-  "gemini-4-argon",
-  "deepseek-v4-pro",
-  "grok-4.7",
-  "kimi-k3",
-  "claude-sonnet-5-5",
-  "gpt-5.6-terra",
-  "gemini-3.8-flash",
-  "deepseek-flash",
-  "grok-4.3",
-  "kimi-k2.6",
+const PROVIDERS = [
+  "OpenAI",
+  "Anthropic",
+  "Google",
+  "DeepSeek",
+  "xAI",
+  "Moonshot",
 ];
 
 const FLOATERS: {
@@ -212,7 +206,7 @@ export function Hero() {
           style={{ animationDelay: "0.75s" }}
         >
           Every model you trust answers at once. They vote on each other, and
-          you get the answer they agree on — on a canvas you can branch from.
+          you get the answer they agree on.
         </p>
 
         <div
@@ -226,7 +220,7 @@ export function Hero() {
             size="lg"
             className="group h-12 rounded-full px-6 text-base"
           >
-            <a href="#showcase">
+            <a href="#walkthrough">
               Watch it work
               <ArrowDown className="transition-transform duration-300 group-hover:translate-y-0.5" />
             </a>
@@ -238,21 +232,19 @@ export function Hero() {
         className="hero-rise relative pb-8"
         style={{ animationDelay: "1.1s" }}
       >
-        <p className="text-muted-foreground mb-4 text-center font-mono text-[11px] tracking-widest uppercase">
-          Six providers · your keys
+        <p className="text-muted-foreground mb-4 text-center text-xs">
+          Bring your own keys
         </p>
-        <div className="group relative overflow-hidden [mask-image:linear-gradient(90deg,transparent,black_15%,black_85%,transparent)]">
-          <div className="marquee flex w-max gap-3 group-hover:[animation-play-state:paused]">
-            {[...MARQUEE, ...MARQUEE].map((model, index) => (
-              <span
-                key={`${model}-${index}`}
-                className="bg-surface text-muted-foreground hover:text-foreground hover:border-border-strong rounded-full border px-4 py-1.5 font-mono text-xs whitespace-nowrap transition-colors"
-              >
-                {model}
-              </span>
-            ))}
-          </div>
-        </div>
+        <ul className="mx-auto flex max-w-3xl flex-wrap items-center justify-center gap-x-8 gap-y-2 px-4 md:gap-x-12">
+          {PROVIDERS.map((provider) => (
+            <li
+              key={provider}
+              className="text-muted-foreground/70 hover:text-foreground cursor-default text-base font-semibold tracking-tight transition-colors duration-300 md:text-lg"
+            >
+              {provider}
+            </li>
+          ))}
+        </ul>
       </div>
     </section>
   );
