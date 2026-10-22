@@ -1,28 +1,30 @@
+import type { Metadata } from "next";
 import { PropsWithChildren } from "react";
 import { AppSidebar } from "@/components/app-sidebar";
 import {
-  SidebarProvider,
   SidebarInset,
+  SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { LogoutButtonMobileTopbar } from "@/components/button/logout";
+import { ProtectedRoute } from "@/components/protected-route";
+import { Logo } from "@/components/brand/logo";
+import { privateRouteMetadata } from "@/constants/metadata";
+
+export const metadata: Metadata = privateRouteMetadata;
 
 export default function DashboardLayout({ children }: PropsWithChildren) {
   return (
-    <SidebarProvider defaultOpen={true}>
-      <AppSidebar />
-      <SidebarInset>
-        <header className="bg-background sticky top-0 left-0 z-10 flex h-12 shrink-0 items-center justify-between border-b px-4 lg:hidden">
-          <div className="bg-foreground/10 flex items-center gap-2 rounded-sm p-1">
-            <SidebarTrigger className="cursor-pointer" />
-          </div>
-
-          <LogoutButtonMobileTopbar />
-        </header>
-        <main className="bg-foreground flex-1 overflow-hidden md:ml-[15rem] lg:pt-6 lg:pl-4">
-          {children}
-        </main>
-      </SidebarInset>
-    </SidebarProvider>
+    <ProtectedRoute>
+      <SidebarProvider>
+        <AppSidebar />
+        <SidebarInset className="h-dvh min-w-0 overflow-hidden">
+          <header className="flex h-12 shrink-0 items-center gap-2 border-b px-3 md:hidden">
+            <SidebarTrigger />
+            <Logo href="/chat" size={20} className="[&>span]:text-lg" />
+          </header>
+          <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+        </SidebarInset>
+      </SidebarProvider>
+    </ProtectedRoute>
   );
 }

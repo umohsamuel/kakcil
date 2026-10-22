@@ -80,13 +80,12 @@ export default class AuthenticationHandler {
   };
 
   register = async (req: Request, res: Response) => {
-    const { email, password, name, is_verified } = req.body;
+    const { email, password, name } = req.body;
 
     const user = await this.authenticationService.register({
       email,
       password,
       name,
-      is_verified,
     });
 
     await this.adapter.councilAdapter.createMany(

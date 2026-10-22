@@ -11,9 +11,13 @@ export default interface ChatRepository {
     meta: Pagination;
   }>;
 
+  getById: (id: string, user_id: string) => Promise<IChat | null>;
+
   add: (chat: Omit<IChat, "id">) => Promise<IChat>;
 
   update: (chat: Partial<IChat>) => Promise<IChat>;
+
+  touch: (id: string) => Promise<void>;
 
   delete: (id: string, user_id: string) => Promise<void>;
 
@@ -31,16 +35,15 @@ export default interface ChatRepository {
     })[]
   >;
 
-  addMessage: (message: Omit<IChatMessage, "id">) => Promise<IChatMessage>;
+  getMessageById: (id: string, chat_id: string) => Promise<IChatMessage | null>;
 
-  getAllMessages(
+  getAllMessages: (chat_id: string) => Promise<IChatMessage[]>;
+
+  getThreadMessages: (
     chat_id: string,
-    branch_id?: string | null,
-  ): Promise<IChatMessage[]>;
+    branch_id: string | null,
+    until?: Date,
+  ) => Promise<IChatMessage[]>;
 
-  getRecentMessages(
-    chatId: string,
-    branchId: string | null,
-    limit: number,
-  ): Promise<IChatMessage[]>;
+  addMessage: (message: Omit<IChatMessage, "id">) => Promise<IChatMessage>;
 }

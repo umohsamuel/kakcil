@@ -3,37 +3,52 @@ import { Metadata } from "next";
 export const webUrl =
   process.env.NEXT_PUBLIC_WEB_URL || "https://kakcil.umohsg.com";
 
+export const siteName = "Kakcil";
+
+export const siteTitle = `${siteName} | Multi-model AI council`;
+
+export const siteDescription =
+  "Kakcil sends your question to several AI models at once. They vote on each other's answers, and you get the one they agree on, on a canvas you can branch from.";
+
+export const owner = {
+  name: "Samuel Umoh",
+  url: "https://www.umohsg.com/",
+  twitter: "@umohsg",
+};
+
+export const shareImage = {
+  url: "/opengraph-image",
+  width: 1200,
+  height: 630,
+  alt: siteName,
+};
+
 export const appMetadata: Metadata = {
   metadataBase: new URL(webUrl),
-  title: "Kakcil | The AI Council - Multi-Model Consensus Platform",
-  description:
-    "Don't settle for one answer. Kakcil prompts multiple top-tier AI models, lets them vote on the responses, and delivers the absolute best result via consensus.",
+  applicationName: siteName,
+  title: {
+    default: siteTitle,
+    template: `%s | ${siteName}`,
+  },
+  description: siteDescription,
   keywords: [
     "Kakcil",
-    "AI Council",
-    "Multi-model AI",
-    "AI Voting",
-    "LLM Aggregator",
-    "Best AI Response",
-    "Artificial Intelligence",
-    "Prompt Engineering",
-    "Consensus Engine",
-    "Samuel Umoh",
-    "Full Stack Developer",
-    "Software Engineer",
-    "AI-powered government council chatbot",
-    "AI-powered chatbot",
-    "AI-powered council",
-    "AI-powered voting",
-    "AI-powered consensus",
-    "AI-powered aggregation",
-    "AI-powered response",
-    "AI-powered platform",
-    "AI-powered chat",
+    "AI council",
+    "multi-model AI",
+    "LLM comparison",
+    "AI voting",
+    "bring your own key",
+    "Claude",
+    "GPT",
+    "Gemini",
+    "DeepSeek",
+    "Grok",
+    "Kimi",
   ],
-  authors: [{ name: "Samuel Umoh", url: webUrl }],
-  creator: "Samuel Umoh",
-  publisher: "Kakcil Platform",
+  authors: [{ name: owner.name, url: owner.url }],
+  creator: owner.name,
+  publisher: owner.name,
+  category: "technology",
   formatDetection: {
     email: false,
     address: false,
@@ -44,43 +59,21 @@ export const appMetadata: Metadata = {
     apple: "/images/logo-with-bg.jpg",
   },
   openGraph: {
-    title: "Kakcil | The AI Council & Voting Platform",
-    description:
-      "Why rely on a single model? Kakcil aggregates answers from multiple AIs and uses a voting council to select the absolute best response for you.",
-    url: "/",
-    siteName: "Kakcil",
-    locale: "en_US",
-    images: [
-      {
-        url: "/images/logo-with-bg.jpg",
-        width: 1200,
-        height: 630,
-        alt: "Kakcil AI Council Platform - Multi-model Voting",
-        type: "image/png",
-      },
-    ],
     type: "website",
+    siteName,
+    locale: "en_US",
+    title: siteTitle,
+    description: siteDescription,
   },
   twitter: {
     card: "summary_large_image",
-    title: "Kakcil | The AI Council & Voting Platform",
-    description:
-      "Ask once, get the consensus. Kakcil uses a council of AI models to vote on and deliver the best possible answer.",
-    images: [
-      {
-        url: "/images/logo-with-bg.jpg",
-        width: 1200,
-        height: 630,
-        alt: "Kakcil AI Council Platform",
-        type: "image/png",
-      },
-    ],
-    creator: "@umohsg",
+    title: siteTitle,
+    description: siteDescription,
+    creator: owner.twitter,
   },
   robots: {
     index: true,
     follow: true,
-    nocache: false,
     googleBot: {
       index: true,
       follow: true,
@@ -89,7 +82,49 @@ export const appMetadata: Metadata = {
       "max-snippet": -1,
     },
   },
-  alternates: {
-    canonical: "/",
+};
+
+export const privateRouteMetadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false,
+    googleBot: { index: false, follow: false },
   },
 };
+
+export function pageMetadata({
+  title,
+  description,
+  path,
+  isPrivate = false,
+}: {
+  title: string;
+  description: string;
+  path?: string;
+  isPrivate?: boolean;
+}): Metadata {
+  const fullTitle = `${title} | ${siteName}`;
+
+  return {
+    ...(isPrivate ? privateRouteMetadata : {}),
+    title,
+    description,
+    ...(path ? { alternates: { canonical: path } } : {}),
+    openGraph: {
+      type: "website",
+      siteName,
+      locale: "en_US",
+      title: fullTitle,
+      description,
+      images: [shareImage],
+      ...(path ? { url: path } : {}),
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: fullTitle,
+      description,
+      creator: owner.twitter,
+      images: ["/twitter-image"],
+    },
+  };
+}

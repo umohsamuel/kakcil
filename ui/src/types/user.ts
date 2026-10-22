@@ -3,8 +3,6 @@ export interface User {
   name: string;
   email: string;
   is_verified: boolean;
-  subscription_tier?: "free" | "plus" | "pro";
-  subscription_status?: string;
 }
 
 export interface AddUserParams {
@@ -21,4 +19,3 @@ export interface UpdateUserParams {
   password?: string;
   is_verified?: boolean;
 }
-

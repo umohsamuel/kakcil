@@ -5,6 +5,8 @@ import { SuccessResponse } from "@/infrastructure/responses/success.ts";
 import type Services from "@/service";
 import type Adapter from "@/adapter";
 
+const MAX_BYOK_COUNCIL_MEMBERS = 6;
+
 export default class CouncilHandler {
   services: Services;
   adapter: Adapter;
@@ -48,43 +50,42 @@ export default class CouncilHandler {
       throw new BadRequestError("Council Members are required");
     }
 
-    const tier = await this.adapter.subscriptionAdapter.getUserTier(id);
+    const maxCouncilMembers = this.adapter.secrets.subscriptionsEnabled
+      ? (await this.adapter.subscriptionAdapter.getUserLimits(id))
+          .maxCouncilMembers
+      : MAX_BYOK_COUNCIL_MEMBERS;
 
-    const limits = await this.adapter.subscriptionAdapter.getUserLimits(id);
-
-    if (members.length > limits.maxCouncilMembers) {
+    if (members.length > maxCouncilMembers) {
       throw new BadRequestError(
-        `You can only have ${limits.maxCouncilMembers} council members on your ${tier} plan. Please upgrade to add more members.`,
+        `You can have at most ${maxCouncilMembers} council members.`,
       );
     }
 
     const activeByokKeys =
-      await this.adapter.userApiKeyAdapter.getActiveKeys(id);
+      (await this.adapter.userApiKeyAdapter.getActiveKeys(id)) ?? [];
 
-    if (activeByokKeys && activeByokKeys.length > 0) {
-      const updateProviders = new Set(
-        members
-          .map((m) =>
-            this.services.councilService.modelRepository.getProviderByModelName(
-              m,
-            ),
-          )
-          .filter((provider) => provider != null),
+    const updateProviders = new Set(
+      members
+        .map((m) =>
+          this.services.councilService.modelRepository.getProviderByModelName(
+            m,
+          ),
+        )
+        .filter((provider) => provider != null),
+    );
+
+    const activeByokKeyProviders = new Set(
+      activeByokKeys.map((k) => k.provider),
+    );
+
+    const unauthorizedProviders = [...updateProviders].filter(
+      (provider) => !activeByokKeyProviders.has(provider),
+    );
+
+    if (unauthorizedProviders.length > 0) {
+      throw new BadRequestError(
+        `Add an active API key for ${unauthorizedProviders.join(", ")} before adding its models to your council.`,
       );
-
-      const activeByokKeyProviders = new Set(
-        activeByokKeys.map((k) => k.provider),
-      );
-
-      const unauthorizedProviders = [...updateProviders].filter(
-        (provider) => !activeByokKeyProviders.has(provider),
-      );
-
-      if (unauthorizedProviders.length > 0) {
-        throw new BadRequestError(
-          `Cannot use models from providers [${unauthorizedProviders.join(", ")}] that do not belong to your API key providers. Active providers: [${[...activeByokKeyProviders].join(", ")}]`,
-        );
-      }
     }
 
     try {

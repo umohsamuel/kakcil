@@ -18,13 +18,15 @@ export default interface LLMRepository {
 
   generateText<T = string>(
     request: TextGenerationRequest,
+    user_id: string,
     output?: Output.Output<T>,
     messageHistory?: ModelMessage[],
   ): Promise<TextGenerationResponse<T>>;
 
   vote(
     request: VoteRequest,
-    llmResponses: (TextGenerationResponse | null)[],
+    user_id: string,
+    llmResponses: TextGenerationResponse[],
     councilMembers: CouncilMember[],
   ): Promise<(LMMScore | null)[]>;
 }

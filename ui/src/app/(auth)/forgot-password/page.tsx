@@ -1,141 +1,85 @@
 "use client";
 
-import { useState } from "react";
-import { authService } from "@/services/auth.service";
+import { useState, type FormEvent } from "react";
+import Link from "next/link";
+import { useMutation } from "@tanstack/react-query";
+import { Loader2, MailCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import Link from "next/link";
-import Image from "next/image";
-import { Loader2, CheckCircle2, ArrowLeft } from "lucide-react";
-import { toast } from "sonner";
+import { AuthShell, FormError, StatusIcon } from "@/components/auth/auth-shell";
+import { authService } from "@/services/auth.service";
+import { getErrorMessage } from "@/lib/utils";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSent, setIsSent] = useState(false);
-  const [error, setError] = useState("");
+  const sendReset = useMutation({
+    mutationFn: (value: string) => authService.forgotPassword(value),
+  });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    setIsSubmitting(true);
-
-    try {
-      await authService.forgotPassword(email);
-      setIsSent(true);
-      toast.success("Reset link sent! Check your email.");
-    } catch (err: unknown) {
-      const msg =
-        err instanceof Error
-          ? err.message
-          : "Failed to send reset email. Please try again.";
-      setError(msg);
-      toast.error(msg);
-    } finally {
-      setIsSubmitting(false);
-    }
+  const handleSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    sendReset.mutate(email);
   };
 
+  const backToSignIn = (
+    <Link href="/login" className="text-foreground font-medium hover:underline">
+      Back to sign in
+    </Link>
+  );
+
+  if (sendReset.isSuccess) {
+    return (
+      <AuthShell title="Check your email" footer={backToSignIn}>
+        <div className="space-y-5 text-center">
+          <StatusIcon>
+            <MailCheck className="size-6" />
+          </StatusIcon>
+          <p className="text-muted-foreground text-sm">
+            If an account exists for{" "}
+            <span className="text-foreground font-medium">{email}</span>, a
+            reset link is on its way. Check your spam folder if it doesn&apos;t
+            arrive.
+          </p>
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => sendReset.reset()}
+          >
+            Use a different email
+          </Button>
+        </div>
+      </AuthShell>
+    );
+  }
+
   return (
-    <div className="bg-background text-foreground flex min-h-dvh items-center justify-center p-4 text-sm lg:text-base">
-      <div className="w-full max-w-md space-y-8">
-        <Card className="border-border bg-background text-foreground border-x-1 border-t-1 border-b-1 shadow-xl drop-shadow-2xl">
-          <CardHeader className={"flex flex-col items-center text-center"}>
-            <Image
-              src="/logo.png"
-              alt="Kakcil Logo"
-              width={48}
-              height={48}
-              className={"invert-100"}
-            />
-            <CardTitle className="font-mono text-2xl font-bold">
-              {isSent ? "Check Your Email" : "Forgot Password"}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {!isSent ? (
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <p className="text-foreground/60 text-center text-sm">
-                  Enter your email address and we&apos;ll send you a link to
-                  reset your password.
-                </p>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="you@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="border-foreground/20"
-                  />
-                </div>
-                {error && (
-                  <div className="border-destructive/50 bg-destructive/10 text-destructive rounded-md border p-3 text-sm">
-                    {error}
-                  </div>
-                )}
-                <Button
-                  type="submit"
-                  className="bg-foreground text-background hover:bg-foreground/60 h-10 w-full cursor-pointer"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Sending...
-                    </>
-                  ) : (
-                    "Send Reset Link"
-                  )}
-                </Button>
-              </form>
-            ) : (
-              <div className="flex flex-col items-center space-y-6 py-4">
-                <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-500/10">
-                  <CheckCircle2 className="h-10 w-10 text-emerald-500" />
-                </div>
-                <div className="space-y-2 text-center">
-                  <p className="text-foreground/80 text-sm">
-                    We&apos;ve sent a password reset link to{" "}
-                    <span className="text-foreground font-medium">{email}</span>.
-                    Please check your inbox.
-                  </p>
-                  <p className="text-foreground/60 text-xs">
-                    Didn&apos;t receive the email? Check your spam folder or try
-                    again.
-                  </p>
-                </div>
-                <Button
-                  onClick={() => setIsSent(false)}
-                  variant="outline"
-                  className="h-10 w-full cursor-pointer"
-                >
-                  Try Again
-                </Button>
-              </div>
-            )}
-          </CardContent>
-          <CardFooter className="border-border flex justify-center border-t pt-6">
-            <Link
-              href="/login"
-              className="text-foreground/80 flex items-center gap-1 text-sm font-medium hover:underline"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Back to Sign In
-            </Link>
-          </CardFooter>
-        </Card>
-      </div>
-    </div>
+    <AuthShell
+      title="Reset your password"
+      description="Enter your email and we'll send you a reset link."
+      footer={backToSignIn}
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            autoComplete="email"
+            placeholder="you@example.com"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            required
+          />
+        </div>
+        <FormError
+          message={sendReset.error ? getErrorMessage(sendReset.error) : null}
+        />
+        <Button type="submit" className="w-full" disabled={sendReset.isPending}>
+          {sendReset.isPending && <Loader2 className="animate-spin" />}
+          Send reset link
+        </Button>
+      </form>
+    </AuthShell>
   );
 }

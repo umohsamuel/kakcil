@@ -1,11 +1,10 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Geist, Geist_Mono, Bitcount_Grid_Double } from "next/font/google";
 import "./globals.css";
 import { QueryProvider } from "@/providers/query-provider";
-import { SSEStreamProvider } from "@/providers/sse-stream-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/components/theme-provider";
-import { Bitcount_Grid_Double } from "next/font/google";
+import { CouncilStreamNotifier } from "@/components/chat/council-stream-notifier";
 import { appMetadata } from "@/constants/metadata";
 
 const geistSans = Geist({
@@ -25,6 +24,13 @@ const bitcountGridDouble = Bitcount_Grid_Double({
 
 export const metadata: Metadata = appMetadata;
 
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#111111" },
+  ],
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -33,18 +39,17 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${bitcountGridDouble.variable} font-mono antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${bitcountGridDouble.variable}`}
       >
         <ThemeProvider
           attribute="class"
-          defaultTheme="light"
-          // enableSystem
+          defaultTheme="system"
+          enableSystem
           disableTransitionOnChange
         >
           <QueryProvider>
-            <SSEStreamProvider>
-              {children}
-            </SSEStreamProvider>
+            {children}
+            <CouncilStreamNotifier />
           </QueryProvider>
           <Toaster />
         </ThemeProvider>
@@ -52,4 +57,3 @@ export default function RootLayout({
     </html>
   );
 }
-

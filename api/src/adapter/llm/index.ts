@@ -1,5 +1,5 @@
 import {
-  MultiCriteriaVoteSchema,
+  createMultiCriteriaVoteSchema,
   type TextGenerationRequest,
   type TextGenerationResponse,
   type VoteRequest,
@@ -12,9 +12,12 @@ import {
   Output,
   type ModelMessage,
 } from "ai";
-import { createOpenAI, openai } from "@ai-sdk/openai";
-import { createGoogleGenerativeAI, google } from "@ai-sdk/google";
-import { anthropic, createAnthropic } from "@ai-sdk/anthropic";
+import { createOpenAI } from "@ai-sdk/openai";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { createAnthropic } from "@ai-sdk/anthropic";
+import { createDeepSeek } from "@ai-sdk/deepseek";
+import { createXai } from "@ai-sdk/xai";
+import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import type LLMRepository from "@/domain/llm/repository";
 import { BadRequestError } from "@/infrastructure/errors/badRequest";
 import { getVotingPrompt } from "@/infrastructure/llm/prompts/vote.ts";
@@ -22,8 +25,10 @@ import { type LMMScore } from "@/infrastructure/utils/vote.ts";
 import type ModelRepository from "@/domain/model/repository.ts";
 import type CouncilRepository from "@/domain/council/repository.ts";
 import type { CouncilMember } from "@/domain/council/entity.ts";
+import type { ModelName } from "@/domain/model/entity.ts";
 import type UserApiKeyRepository from "@/domain/user/api_key/repository";
 import { decryptApiKey } from "@/infrastructure/utils/encryption";
+import { JSON_MODE_PROVIDERS, KIMI_BASE_URL } from "@/infrastructure/model";
 
 export default class LLMAdapter implements LLMRepository {
   secrets: Secrets;
@@ -46,17 +51,11 @@ export default class LLMAdapter implements LLMRepository {
     this.userApiKeyRepository = userApiKeyRepository;
   }
 
-  async streamText<T = string>(
-    request: TextGenerationRequest,
-    user_id: string,
-    output?: Output.Output<T>,
-    messageHistory?: ModelMessage[],
-    onChunk?: (partial: { text?: string; output?: T }) => void,
-  ): Promise<TextGenerationResponse<T> | undefined> {
-    const provider = this.modelRepository.getProviderByModelName(request.model);
+  private async resolveModel(model_name: ModelName, user_id: string) {
+    const provider = this.modelRepository.getProviderByModelName(model_name);
 
     if (!provider) {
-      throw new BadRequestError(`Unsupported provider: ${provider}`);
+      throw new BadRequestError(`Unsupported model: ${model_name}`);
     }
 
     const userApiKey = await this.userApiKeyRepository.getActiveKeyByProvider(
@@ -64,49 +63,72 @@ export default class LLMAdapter implements LLMRepository {
       provider,
     );
 
+    if (!userApiKey?.encrypted_key) {
+      throw new BadRequestError(
+        `No active ${provider} API key. Add one in Settings to use ${model_name}.`,
+      );
+    }
+
+    const apiKey = decryptApiKey(userApiKey.encrypted_key);
+    const jsonMode = JSON_MODE_PROVIDERS.includes(provider);
+
+    switch (provider) {
+      case "anthropic":
+        return { model: createAnthropic({ apiKey })(model_name), jsonMode };
+      case "openai":
+        return { model: createOpenAI({ apiKey })(model_name), jsonMode };
+      case "google":
+        return {
+          model: createGoogleGenerativeAI({ apiKey })(model_name),
+          jsonMode,
+        };
+      case "deepseek":
+        return { model: createDeepSeek({ apiKey })(model_name), jsonMode };
+      case "xai":
+        return { model: createXai({ apiKey })(model_name), jsonMode };
+      case "kimi":
+        return {
+          model: createOpenAICompatible({
+            name: "kimi",
+            apiKey,
+            baseURL: KIMI_BASE_URL,
+          }).chatModel(model_name),
+          jsonMode,
+        };
+      default:
+        throw new BadRequestError(`Unsupported provider: ${provider}`);
+    }
+  }
+
+  private async jsonInstruction<T>(
+    output: Output.Output<T> | undefined,
+    jsonMode: boolean,
+  ) {
+    if (!output || !jsonMode) return undefined;
+
+    const format = await output.responseFormat;
+    if (format?.type !== "json" || !format.schema) return undefined;
+
+    return `Respond with only a valid JSON object, no markdown fences, that matches this JSON schema:
+${JSON.stringify(format.schema)}`;
+  }
+
+  async streamText<T = string>(
+    request: TextGenerationRequest,
+    user_id: string,
+    output?: Output.Output<T>,
+    messageHistory?: ModelMessage[],
+    onChunk?: (partial: { text?: string; output?: T }) => void,
+  ): Promise<TextGenerationResponse<T> | undefined> {
     if (!request.prompt) {
       throw new BadRequestError("prompt is required");
     }
 
-    let model;
-
-    if (provider === "anthropic") {
-      if (userApiKey?.encrypted_key) {
-        const customAnthropic = createAnthropic({
-          apiKey: decryptApiKey(userApiKey?.encrypted_key),
-        });
-        console.log("using custom anthropic");
-
-        model = customAnthropic(request.model);
-      } else {
-        model = anthropic(request.model);
-      }
-    } else if (provider === "openai") {
-      if (userApiKey?.encrypted_key) {
-        const customOpenAI = createOpenAI({
-          apiKey: decryptApiKey(userApiKey?.encrypted_key),
-        });
-        console.log("using custom openai");
-        model = customOpenAI(request.model);
-      } else {
-        model = openai(request.model);
-      }
-    } else if (provider === "google") {
-      if (userApiKey?.encrypted_key) {
-        const customGoogle = createGoogleGenerativeAI({
-          apiKey: decryptApiKey(userApiKey?.encrypted_key),
-        });
-        console.log("using custom google");
-        model = customGoogle(request.model);
-      } else {
-        model = google(request.model);
-      }
-    } else {
-      throw new BadRequestError(`Unsupported provider: ${provider}`);
-    }
+    const { model, jsonMode } = await this.resolveModel(request.model, user_id);
 
     const { partialOutputStream } = sdkStreamText({
       model,
+      system: await this.jsonInstruction(output, jsonMode),
       messages: [
         ...(messageHistory ?? []),
         { role: "user", content: request.prompt },
@@ -133,7 +155,7 @@ export default class LLMAdapter implements LLMRepository {
 
       return {
         prompt: request.prompt,
-        model: provider ? request.model : "unknown",
+        model: request.model,
         response: lastOutput,
         topic: outputData.topic,
       };
@@ -142,22 +164,19 @@ export default class LLMAdapter implements LLMRepository {
 
   async generateText<T = string>(
     request: TextGenerationRequest,
+    user_id: string,
     output?: Output.Output<T>,
     messageHistory?: ModelMessage[],
   ): Promise<TextGenerationResponse<T>> {
-    const provider = this.modelRepository.getProviderByModelName(request.model);
-
     if (!request.prompt) {
       throw new BadRequestError("prompt is required");
     }
 
+    const { model, jsonMode } = await this.resolveModel(request.model, user_id);
+
     const result = await sdkGenerateText({
-      model:
-        provider === "anthropic"
-          ? anthropic(request.model)
-          : provider === "openai"
-            ? openai(request.model)
-            : google(request.model),
+      model,
+      system: await this.jsonInstruction(output, jsonMode),
       messages: [
         ...(messageHistory ?? []),
         { role: "user", content: request.prompt },
@@ -167,7 +186,7 @@ export default class LLMAdapter implements LLMRepository {
 
     return {
       prompt: request.prompt,
-      model: provider ? request.model : "unknown",
+      model: request.model,
       response: (result.output ?? result.text) as T,
       topic: result.text
         ? undefined
@@ -177,7 +196,8 @@ export default class LLMAdapter implements LLMRepository {
 
   async vote(
     request: VoteRequest,
-    llmResponses: (TextGenerationResponse | null)[],
+    user_id: string,
+    llmResponses: TextGenerationResponse[],
     councilMembers: CouncilMember[],
   ): Promise<(LMMScore | null)[]> {
     if (!request || !request.prompt) {
@@ -188,18 +208,11 @@ export default class LLMAdapter implements LLMRepository {
       throw new BadRequestError("Failed to get any responses from models");
     }
 
-    const messageHistory = request.history?.map((m) => ({
-      role: m.role,
-      content: m.content,
-    })) as ModelMessage[] | undefined;
+    const letters = llmResponses.map((_, idx) => String.fromCharCode(65 + idx));
+    const votingPrompt = getVotingPrompt(request.prompt, llmResponses);
+    const schema = createMultiCriteriaVoteSchema(letters);
 
-    const originalPrompt = request.prompt;
-
-    const votingPrompt = getVotingPrompt(originalPrompt, llmResponses);
-
-    console.log("voting council members", { councilMembers });
-
-    const llmScores = await Promise.all(
+    return await Promise.all(
       councilMembers.map(async (member) => {
         try {
           const result = await this.generateText(
@@ -207,10 +220,9 @@ export default class LLMAdapter implements LLMRepository {
               prompt: votingPrompt,
               model: member.model_name,
             },
-            Output.object({
-              schema: MultiCriteriaVoteSchema,
-            }),
-            messageHistory,
+            user_id,
+            Output.object({ schema }),
+            request.history,
           );
 
           return {
@@ -229,13 +241,5 @@ export default class LLMAdapter implements LLMRepository {
         }
       }),
     );
-
-    console.log("all scores:", JSON.stringify(llmScores, null, 2));
-
-    if (llmScores.length === 0) {
-      throw new BadRequestError("Failed to get any scores from models");
-    }
-
-    return llmScores;
   }
 }
