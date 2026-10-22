@@ -42,7 +42,8 @@ export default class ExpressHTTP {
     this.server.use(cookieParser(this.secrets.cookieSecret));
     this.server.use(
       cors({
-        origin: [this.secrets.clientOrigin, "http://localhost:3000"],
+        origin: this.secrets.clientOrigin,
+        // origin: [this.secrets.clientOrigin, "http://localhost:3000"],
         ...corsOptions,
       }),
     );
