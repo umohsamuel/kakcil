@@ -1,11 +1,12 @@
 "use client";
 
-import { useRef, type CSSProperties, type PointerEvent } from "react";
+import type { CSSProperties } from "react";
 import Link from "next/link";
 import { ArrowDown, ArrowRight, Crown, GitBranch, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/store/auth.store";
 import { useHydration } from "@/hooks/use-hydrate";
+import { usePointerFrame } from "@/hooks/use-pointer-frame";
 import { cn } from "@/lib/utils";
 
 const PROVIDERS = [
@@ -130,24 +131,23 @@ function PrimaryAction() {
   );
 }
 
-export function Hero() {
-  const rootRef = useRef<HTMLElement>(null);
+function setHeroPointer(
+  root: HTMLElement,
+  x: number,
+  y: number,
+  rect: DOMRect
+) {
+  root.style.setProperty("--mx", `${x}px`);
+  root.style.setProperty("--my", `${y}px`);
+  root.style.setProperty("--px", `${(x / rect.width) * 2 - 1}`);
+  root.style.setProperty("--py", `${(y / rect.height) * 2 - 1}`);
+}
 
-  const handlePointerMove = (event: PointerEvent<HTMLElement>) => {
-    const root = rootRef.current;
-    if (!root) return;
-    const rect = root.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    root.style.setProperty("--mx", `${x}px`);
-    root.style.setProperty("--my", `${y}px`);
-    root.style.setProperty("--px", `${(x / rect.width) * 2 - 1}`);
-    root.style.setProperty("--py", `${(y / rect.height) * 2 - 1}`);
-  };
+export function Hero() {
+  const handlePointerMove = usePointerFrame(setHeroPointer);
 
   return (
     <section
-      ref={rootRef}
       onPointerMove={handlePointerMove}
       className="relative isolate flex min-h-svh flex-col overflow-hidden [--mx:50%] [--my:40%] [--px:0] [--py:0]"
     >

@@ -55,6 +55,7 @@ export function AsciiGravity({
     const textLines = linesKey.split("\n");
     const field = new GravityField();
     const cursor = { col: -999, row: -999 };
+    let pointer: { x: number; y: number } | null = null;
     const pixelRatio = window.devicePixelRatio || 1;
     const reducedMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)"
@@ -157,7 +158,16 @@ export function AsciiGravity({
       }
     };
 
+    const syncCursor = () => {
+      if (!pointer) return;
+      const rect = canvas.getBoundingClientRect();
+      cursor.col = (pointer.x - rect.left) / step;
+      cursor.row = (pointer.y - rect.top) / step;
+      pointer = null;
+    };
+
     const loop = () => {
+      syncCursor();
       if (field.step(cursor.col, cursor.row) || needsDraw) {
         draw();
         needsDraw = false;
@@ -178,12 +188,11 @@ export function AsciiGravity({
     };
 
     const onMouseMove = (event: MouseEvent) => {
-      const rect = canvas.getBoundingClientRect();
-      cursor.col = (event.clientX - rect.left) / step;
-      cursor.row = (event.clientY - rect.top) / step;
+      pointer = { x: event.clientX, y: event.clientY };
     };
 
     const onMouseLeave = () => {
+      pointer = null;
       cursor.col = -999;
       cursor.row = -999;
     };

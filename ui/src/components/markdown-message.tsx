@@ -1,19 +1,16 @@
 "use client";
 
-import { memo, useState, type ComponentPropsWithoutRef } from "react";
+import { memo, type ComponentPropsWithoutRef } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Check, Copy } from "lucide-react";
+import { useCopy } from "@/hooks/use-copy";
 import { cn } from "@/lib/utils";
 
 function CopyButton({ text }: { text: string }) {
-  const [isCopied, setIsCopied] = useState(false);
+  const { copied: isCopied, copy } = useCopy();
 
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(text);
-    setIsCopied(true);
-    window.setTimeout(() => setIsCopied(false), 1500);
-  };
+  const handleCopy = () => copy(text);
 
   return (
     <button

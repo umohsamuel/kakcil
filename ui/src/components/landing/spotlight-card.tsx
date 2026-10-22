@@ -1,7 +1,13 @@
 "use client";
 
-import type { PointerEvent, ReactNode } from "react";
+import type { ReactNode } from "react";
+import { usePointerFrame } from "@/hooks/use-pointer-frame";
 import { cn } from "@/lib/utils";
+
+function setSpotlightPointer(card: HTMLDivElement, x: number, y: number) {
+  card.style.setProperty("--x", `${x}px`);
+  card.style.setProperty("--y", `${y}px`);
+}
 
 export function SpotlightCard({
   className,
@@ -10,17 +16,7 @@ export function SpotlightCard({
   className?: string;
   children: ReactNode;
 }) {
-  const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    event.currentTarget.style.setProperty(
-      "--x",
-      `${event.clientX - rect.left}px`
-    );
-    event.currentTarget.style.setProperty(
-      "--y",
-      `${event.clientY - rect.top}px`
-    );
-  };
+  const handlePointerMove = usePointerFrame(setSpotlightPointer);
 
   return (
     <div

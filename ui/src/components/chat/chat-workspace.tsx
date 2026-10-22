@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Node } from "reactflow";
@@ -181,8 +181,10 @@ export function ChatWorkspace({ chatId }: { chatId?: string }) {
     if (isMobile) setSelectedNodeId(null);
   };
 
-  const handleSelect = (node: Node<CouncilNodeData> | null) =>
-    setSelectedNodeId(node?.id ?? null);
+  const handleSelect = useCallback(
+    (node: Node<CouncilNodeData> | null) => setSelectedNodeId(node?.id ?? null),
+    []
+  );
 
   if (chatId && graphQuery.isLoading) {
     return <PageLoader className="min-h-0 flex-1" label="Loading chat…" />;
